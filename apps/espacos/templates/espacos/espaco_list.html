@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Espaços · {{ PRODUCT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between gap-3">
+  <h1>Espaços</h1>
+  {% if espacos %}<a class="btn-primary" href="{% url 'espacos:create' %}">{% include "components/icon.html" with name="plus" %} Novo espaço</a>{% endif %}
+</div>
+
+{% if espacos %}
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% for espaco in espacos %}
+  <div class="card overflow-hidden {% if not espaco.ativo %}opacity-60{% endif %}" data-theme="{{ espaco.tema }}">
+    <a href="{% url 'espacos:update' espaco.pk %}" class="block bg-primary/5 p-4">
+      {% include "components/illustration.html" with tema=espaco.tema class="mx-auto h-24 w-auto" %}
+    </a>
+    <div class="p-4">
+      <h2>{{ espaco.nome }}</h2>
+      <p class="truncate text-sm text-muted">{{ espaco.modalidades|default:espaco.get_tipo_display }}{% if not espaco.ativo %} · inativo{% endif %}</p>
+      <div class="mt-3 flex gap-1">
+        <a class="tab" href="{% url 'espacos:update' espaco.pk %}">Dados</a>
+        <a class="tab" href="{% url 'espacos:horarios' espaco.pk %}">Horários</a>
+        <a class="tab" href="{% url 'espacos:precos' espaco.pk %}">Preços</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+{% url 'espacos:create' as create_url %}
+{% include "components/empty_state.html" with tema="areia" title="Cadastre seu primeiro espaço" text="Campo, quadra ou areia: cada espaço ganha a própria coluna na agenda." url=create_url action="Cadastrar espaço" %}
+{% endif %}
+{% endblock %}

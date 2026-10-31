@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Preços · {{ espaco.nome }} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "espacos/_tabs.html" with active="precos" %}
+<form method="post" class="card flex flex-col gap-4 p-5" data-theme="{{ espaco.tema }}">
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  <fieldset>
+    <legend class="label">{{ form.dias.label }}</legend>
+    <div class="flex flex-wrap gap-2">
+      {% for option in form.dias %}
+      <label class="chip">{{ option.tag }} {{ option.choice_label }}</label>
+      {% endfor %}
+    </div>
+    {% for error in form.dias.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+  </fieldset>
+  <div class="grid grid-cols-2 gap-4">
+    {% include "components/field.html" with field=form.hora_inicio %}
+    {% include "components/field.html" with field=form.hora_fim %}
+  </div>
+  {% include "components/field.html" with field=form.duracao %}
+  <div class="grid grid-cols-2 gap-4">
+    {% include "components/field.html" with field=form.valor %}
+    {% include "components/field.html" with field=form.valor_sinal %}
+  </div>
+  <div class="flex gap-2">
+    <button class="btn-primary" type="submit">Salvar</button>
+    <a class="btn-ghost" href="{% url 'espacos:precos' espaco.pk %}">Voltar</a>
+  </div>
+</form>
+{% endblock %}

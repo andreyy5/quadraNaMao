@@ -1,0 +1,7 @@
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="left" %} Espaços</a>
+<h1 class="mb-4">{{ espaco.nome }}</h1>
+<nav class="mb-5 flex gap-1 overflow-x-auto" aria-label="Seções do espaço">
+  <a class="tab {% if active == 'dados' %}is-active{% endif %}" href="{% url 'espacos:update' espaco.pk %}">Dados</a>
+  <a class="tab {% if active == 'horarios' %}is-active{% endif %}" href="{% url 'espacos:horarios' espaco.pk %}">Horários</a>
+  <a class="tab {% if active == 'precos' %}is-active{% endif %}" href="{% url 'espacos:precos' espaco.pk %}">Preços</a>
+</nav>

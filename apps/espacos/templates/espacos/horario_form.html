@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Horários · {{ espaco.nome }} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "espacos/_tabs.html" with active="horarios" %}
+<form method="post" x-data="weekHours" data-theme="{{ espaco.tema }}">
+  {% csrf_token %}
+  {{ formset.management_form }}
+  <div class="card divide">
+    {% for form in formset %}
+    <div class="hours-row px-4 py-3" data-hours-row>
+      {{ form.dia_semana }}
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label class="flex min-h-11 w-28 cursor-pointer items-center gap-3 font-medium">{{ form.aberto }} {{ form.dia_label }}</label>
+        <div class="hours-time flex flex-1 items-center gap-2">
+          <label class="sr-only" for="{{ form.abre.id_for_label }}">Abre às</label>{{ form.abre }}
+          <span class="text-sm text-muted">às</span>
+          <label class="sr-only" for="{{ form.fecha.id_for_label }}">Fecha às</label>{{ form.fecha }}
+        </div>
+      </div>
+      {% for error in form.non_field_errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="help">Se o horário de fechar for menor que o de abrir, o espaço fecha no dia seguinte (ex.: 18:00 às 01:00).</p>
+  <div class="mt-4 flex flex-wrap gap-2">
+    <button class="btn-primary" type="submit">Salvar horários</button>
+    <button class="btn-secondary" type="button" @click="copyFirst">Copiar segunda para todos</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{% if espaco %}{{ espaco.nome }}{% else %}Novo espaço{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% if espaco %}
+{% include "espacos/_tabs.html" with active="dados" %}
+{% else %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="left" %} Espaços</a>
+<h1 class="mb-5">Novo espaço</h1>
+{% endif %}
+<form method="post" class="card flex flex-col gap-4 p-5" {% if espaco %}data-theme="{{ espaco.tema }}"{% endif %}>
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.nome %}
+  {% include "components/field.html" with field=form.tipo %}
+  {% include "components/field.html" with field=form.modalidades %}
+  <div class="grid gap-4 sm:grid-cols-2">
+    {% include "components/field.html" with field=form.capacidade %}
+    {% include "components/field.html" with field=form.ordem %}
+  </div>
+  {% include "components/checkbox.html" with field=form.ativo %}
+  <div><button class="btn-primary" type="submit">Salvar</button></div>
+</form>
+{% endblock %}

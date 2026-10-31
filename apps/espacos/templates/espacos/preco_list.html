@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Preços · {{ espaco.nome }} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "espacos/_tabs.html" with active="precos" %}
+{% if precos %}
+<div class="mb-3 flex justify-end"><a class="btn-primary" href="{% url 'espacos:preco_create' espaco.pk %}">{% include "components/icon.html" with name="plus" %} Nova faixa</a></div>
+<div class="card divide overflow-hidden">
+  {% for row in precos %}
+  <div class="flex items-center gap-3 px-4 py-2">
+    <a class="min-w-0 flex-1 py-1 hover:text-primary" href="{% url 'espacos:preco_update' espaco.pk row.regra.pk %}">
+      <span class="block font-medium">{{ row.label }}</span>
+      <span class="block text-sm tabular-nums text-muted">{{ row.regra.hora_inicio|time:"H:i" }}–{{ row.regra.hora_fim|time:"H:i" }} · {{ row.regra.duracao_slot_minutos }} min{% if row.regra.valor_sinal %} · sinal {{ row.regra.valor_sinal|brl }}{% endif %}</span>
+    </a>
+    <span class="font-medium tabular-nums">{{ row.regra.valor|brl }}</span>
+    <form method="post" action="{% url 'espacos:preco_delete' espaco.pk row.regra.pk %}">
+      {% csrf_token %}
+      <button class="btn-icon" type="submit" aria-label="Remover faixa: {{ row.label }}, {{ row.regra.hora_inicio|time:'H:i' }}" title="Remover">{% include "components/icon.html" with name="close" %}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+{% url 'espacos:preco_create' espaco.pk as create_url %}
+{% include "components/empty_state.html" with tema=espaco.tema title="Monte a tabela de preços" text="Com os preços definidos, o valor já aparece preenchido em cada reserva." url=create_url action="Adicionar preço" %}
+{% endif %}
+{% endblock %}
