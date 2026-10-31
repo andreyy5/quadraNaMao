@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load clientes_ui %}
+
+{% block title %}Clientes · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<div class="mb-5 flex items-center justify-between gap-3">
+  <h1>Clientes</h1>
+  <a class="btn-primary" href="{% url 'clientes:create' %}">{% include "components/icon.html" with name="plus" %} Novo</a>
+</div>
+
+<form method="get" class="relative mb-4" role="search">
+  <label class="sr-only" for="busca">Buscar cliente</label>
+  <span class="pointer-events-none absolute left-3.5 top-3 text-muted">{% include "components/icon.html" with name="search" %}</span>
+  <input id="busca" class="input pl-11" type="search" name="q" value="{{ q }}" placeholder="Buscar por nome ou telefone" autocomplete="off"
+         hx-get="{% url 'clientes:list' %}" hx-trigger="input changed delay:200ms, search" hx-target="#client-list" hx-select="#client-list" hx-swap="outerHTML" hx-push-url="true">
+</form>
+
+<div id="client-list">
+  {% if clientes %}
+  <div class="card divide overflow-hidden">
+    {% for cliente in clientes %}
+    <a class="row-link" href="{% url 'clientes:detail' cliente.pk %}">
+      <span class="min-w-0 flex-1 truncate font-medium">{{ cliente.nome }}</span>
+      <span class="text-sm tabular-nums text-muted">{{ cliente.telefone|telefone }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-4 flex items-center justify-between" aria-label="Paginação">
+    {% if page_obj.has_previous %}<a class="btn-secondary" href="?page={{ page_obj.previous_page_number }}&q={{ q|urlencode }}">Anterior</a>{% else %}<span></span>{% endif %}
+    <span class="text-sm text-muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn-secondary" href="?page={{ page_obj.next_page_number }}&q={{ q|urlencode }}">Próxima</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+  {% elif q %}
+  <p class="py-10 text-center text-muted">Nenhum cliente encontrado para “{{ q }}”.</p>
+  {% else %}
+  {% url 'clientes:create' as create_url %}
+  {% include "components/empty_state.html" with tema="quadra" title="Nenhum cliente ainda" text="Os clientes também são cadastrados automaticamente quando você faz uma reserva." url=create_url action="Cadastrar cliente" %}
+  {% endif %}
+</div>
+{% endblock %}

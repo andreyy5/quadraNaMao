@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{% if cliente %}{{ cliente.nome }}{% else %}Novo cliente{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% if cliente %}{% url 'clientes:detail' cliente.pk %}{% else %}{% url 'clientes:list' %}{% endif %}">{% include "components/icon.html" with name="left" %} Voltar</a>
+<h1 class="mb-5">{% if cliente %}Editar cliente{% else %}Novo cliente{% endif %}</h1>
+<form method="post" class="card flex flex-col gap-4 p-5">
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.nome %}
+  {% include "components/field.html" with field=form.telefone %}
+  {% include "components/field.html" with field=form.email %}
+  {% include "components/field.html" with field=form.observacoes %}
+  {% include "components/checkbox.html" with field=form.aceite_whatsapp %}
+  <div><button class="btn-primary" type="submit">Salvar</button></div>
+</form>
+{% endblock %}

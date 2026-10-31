@@ -1,0 +1,97 @@
+from django.contrib import messages
+from django.db.models import Count, Q
+from django.shortcuts import redirect
+from django.urls import reverse, reverse_lazy
+from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
+
+from apps.agenda.models import Reserva
+from apps.estabelecimentos.mixins import TenantCreateMixin, TenantRequiredMixin
+
+from .forms import ClienteForm
+from .models import Cliente
+from .services import anonymize_client, search_clients
+
+
+class ClienteListView(TenantRequiredMixin, ListView):
+    template_name = "clientes/cliente_list.html"
+    context_object_name = "clientes"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return search_clients(self.request.GET.get("q"))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["q"] = self.request.GET.get("q", "")
+        return context
+
+
+class ClienteSearchView(TenantRequiredMixin, TemplateView):
+    """Sugestões enquanto o atendente digita nome ou telefone na reserva."""
+
+    template_name = "clientes/_search_results.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET
+        query = (
+            params.get("cliente_telefone") or params.get("cliente_nome") or params.get("q") or ""
+        ).strip()
+        context["clientes"] = search_clients(query, limit=6) if len(query) >= 2 else []
+        return context
+
+
+class ClienteCreateView(TenantRequiredMixin, TenantCreateMixin, CreateView):
+    model = Cliente
+    form_class = ClienteForm
+    template_name = "clientes/cliente_form.html"
+
+    def get_success_url(self):
+        messages.success(self.request, "Cliente cadastrado.")
+        return reverse("clientes:detail", args=[self.object.pk])
+
+
+class ClienteDetailView(TenantRequiredMixin, DetailView):
+    model = Cliente
+    template_name = "clientes/cliente_detail.html"
+    context_object_name = "cliente"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        reservas = Reserva.objects.filter(cliente=self.object).select_related("espaco")
+        context["reservas"] = reservas.order_by("-inicio")[:30]
+        context["resumo"] = reservas.aggregate(
+            total=Count("pk", filter=~Q(status=Reserva.Status.CANCELADA)),
+            faltas=Count("pk", filter=Q(status=Reserva.Status.NAO_COMPARECEU)),
+            canceladas=Count("pk", filter=Q(status=Reserva.Status.CANCELADA)),
+        )
+        return context
+
+
+class ClienteUpdateView(TenantRequiredMixin, UpdateView):
+    model = Cliente
+    form_class = ClienteForm
+    template_name = "clientes/cliente_form.html"
+    context_object_name = "cliente"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(anonimizado_em__isnull=True)
+
+    def get_success_url(self):
+        messages.success(self.request, "Cliente salvo.")
+        return reverse("clientes:detail", args=[self.object.pk])
+
+
+class ClienteAnonymizeView(TenantRequiredMixin, DetailView):
+    model = Cliente
+    template_name = "clientes/cliente_anonymize.html"
+    context_object_name = "cliente"
+    success_url = reverse_lazy("clientes:list")
+
+    def get_queryset(self):
+        return super().get_queryset().filter(anonimizado_em__isnull=True)
+
+    def post(self, request, *args, **kwargs):
+        anonymize_client(self.get_object())
+        messages.success(request, "Dados pessoais do cliente apagados.")
+        return redirect(self.success_url)
