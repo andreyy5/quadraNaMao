@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Ajustes · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "estabelecimentos/_tabs.html" with active="estabelecimento" %}
+<form method="post" class="card flex flex-col gap-4 p-5">
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.nome %}
+  <div class="grid gap-4 sm:grid-cols-2">
+    {% include "components/field.html" with field=form.documento %}
+    {% include "components/field.html" with field=form.telefone %}
+  </div>
+  {% include "components/field.html" with field=form.endereco %}
+  {% include "components/field.html" with field=form.fuso_horario %}
+  <div><button class="btn-primary" type="submit">Salvar</button></div>
+</form>
+{% endblock %}
