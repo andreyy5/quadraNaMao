@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: quadranamao
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: quadranamao
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quadranamao"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      SECRET_KEY: ci-only
+      DATABASE_URL: postgres://quadranamao:ci-only@localhost:5432/quadranamao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: pip install -r requirements/dev.txt
+      - run: npm ci && npm run build
+      - run: ruff check .
+      - run: black --check .
+      - run: python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+      - run: pytest
