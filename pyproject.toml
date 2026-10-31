@@ -1,0 +1,18 @@
+[tool.black]
+line-length = 110
+extend-exclude = "migrations"
+
+[tool.ruff]
+line-length = 110
+extend-exclude = ["migrations", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+ignore = ["E501", "DJ001"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+testpaths = ["apps"]
+addopts = "-ra"
+filterwarnings = ["ignore:No directory at:UserWarning"]

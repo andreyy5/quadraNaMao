@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+psycopg[binary]>=3.2,<4
+django-environ>=0.11,<1
+phonenumbers>=8.13,<10
+celery>=5.4,<6
+redis>=5,<7
+whitenoise>=6.7,<7
+tzdata>=2024.1

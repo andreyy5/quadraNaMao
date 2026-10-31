@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Segredos
+.env
+.env.*
+!.env.example
+
+# Django
+staticfiles/
+media/
+
+# Front-end (gerados por npm run build)
+node_modules/
+static/css/app.css
+static/vendor/
+
+# Editor e sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

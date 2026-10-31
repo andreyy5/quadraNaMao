@@ -1,0 +1,19 @@
+{
+  "name": "quadranamao",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "vendor": "node scripts/copy_vendor.mjs",
+    "css": "tailwindcss -i assets/css/app.css -o static/css/app.css --minify",
+    "dev": "tailwindcss -i assets/css/app.css -o static/css/app.css --watch",
+    "build": "npm run vendor && npm run css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.1.0",
+    "alpinejs": "^3.14.0",
+    "htmx.org": "^2.0.0"
+  }
+}

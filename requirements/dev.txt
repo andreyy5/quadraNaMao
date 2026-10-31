@@ -1,0 +1,6 @@
+-r base.txt
+pytest>=8,<9
+pytest-django>=4.8,<5
+ruff>=0.6
+black>=24
+pre-commit>=3.8
