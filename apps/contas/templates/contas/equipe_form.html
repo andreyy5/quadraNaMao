@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Equipe · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "estabelecimentos/_tabs.html" with active="equipe" %}
+<form method="post" class="card flex flex-col gap-4 p-5">
+  {% csrf_token %}
+  <h2>{% if membro %}{{ membro.nome }}{% else %}Nova pessoa na equipe{% endif %}</h2>
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.nome %}
+  {% if form.email %}{% include "components/field.html" with field=form.email %}{% endif %}
+  {% include "components/field.html" with field=form.papel %}
+  {% if form.password %}{% include "components/field.html" with field=form.password %}{% endif %}
+  {% if form.is_active %}{% include "components/checkbox.html" with field=form.is_active %}{% endif %}
+  <div class="flex gap-2">
+    <button class="btn-primary" type="submit">Salvar</button>
+    <a class="btn-ghost" href="{% url 'contas:equipe' %}">Voltar</a>
+  </div>
+</form>
+{% endblock %}

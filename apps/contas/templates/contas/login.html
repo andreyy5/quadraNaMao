@@ -1,0 +1,24 @@
+{% extends "base_html.html" %}
+
+{% block title %}Entrar · {{ PRODUCT_NAME }}{% endblock %}
+
+{% block body %}
+<main class="flex min-h-dvh flex-col items-center justify-center px-5 py-10" data-theme="areia">
+  <div class="w-full max-w-sm">
+    <div class="mb-8 text-center">
+      {% include "components/illustration.html" with tema="areia" class="mx-auto mb-5 h-20 w-auto" %}
+      <h1 class="text-[28px]">Quadra<span class="text-primary">Na</span>Mão<span class="text-primary">!</span></h1>
+      <p class="mt-1 text-sm text-muted">Sua agenda de quadras, sem caderno.</p>
+    </div>
+    <form method="post" class="flex flex-col gap-4">
+      {% csrf_token %}
+      {% include "components/form_errors.html" %}
+      {% for message in messages %}<div class="form-alert" role="alert">{{ message }}</div>{% endfor %}
+      {% include "components/field.html" with field=form.username %}
+      {% include "components/field.html" with field=form.password %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="btn-primary mt-2 w-full" type="submit">Entrar</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

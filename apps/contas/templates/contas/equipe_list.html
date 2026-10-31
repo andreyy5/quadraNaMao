@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Equipe · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "estabelecimentos/_tabs.html" with active="equipe" %}
+<div class="mb-3 flex justify-end"><a class="btn-primary" href="{% url 'contas:equipe_create' %}">{% include "components/icon.html" with name="plus" %} Adicionar pessoa</a></div>
+<div class="card divide overflow-hidden">
+  {% for membro in membros %}
+  <a class="row-link" href="{% url 'contas:equipe_update' membro.pk %}">
+    <div class="min-w-0 flex-1">
+      <p class="truncate font-medium">{{ membro.nome }}</p>
+      <p class="truncate text-sm text-muted">{{ membro.email }}</p>
+    </div>
+    <span class="text-sm text-muted">{{ membro.get_papel_display }}{% if not membro.is_active %} · inativo{% endif %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
