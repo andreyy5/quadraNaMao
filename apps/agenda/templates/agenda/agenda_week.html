@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda da semana · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-none{% endblock %}
+
+{% block content %}
+{% include "agenda/_toolbar.html" %}
+
+{% if grid %}
+<div class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0" role="group" aria-label="Escolher espaço">
+  {% for espaco in espacos %}
+  <a class="chip" data-theme="{{ espaco.tema }}" aria-pressed="{% if espaco == selected %}true{% else %}false{% endif %}" href="{% url 'agenda:week' %}?data={{ day|date:'Y-m-d' }}&espaco={{ espaco.pk }}">{{ espaco.nome }}</a>
+  {% endfor %}
+</div>
+{% include "agenda/_grid.html" with show_day_labels=True %}
+{% else %}
+{% include "components/empty_state.html" with tema="areia" title="Nenhum espaço ativo" text="Cadastre um espaço para ver a semana." %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% include "components/modal_header.html" with title=reserva|yesno:"Editar reserva,Nova reserva" %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="flex flex-col gap-4 p-5"
+      x-data="reservaForm($el.dataset)" data-cliente="{{ form.cliente.value|default_if_none:'' }}" data-nome="{{ form.cliente_nome.value|default_if_none:'' }}" data-telefone="{{ form.cliente_telefone.value|default_if_none:'' }}">
+  {% csrf_token %}
+  {{ form.cliente }}
+  {% include "components/form_errors.html" %}
+
+  <div @click.outside="clearResults">
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "components/field.html" with field=form.cliente_nome %}
+      {% include "components/field.html" with field=form.cliente_telefone %}
+    </div>
+    <div id="cliente-results" x-ref="results"></div>
+    <p class="help" x-show="clienteId" x-cloak>Cliente já cadastrado.</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4" hx-get="{% url 'agenda:reserva_quote' %}" hx-trigger="change" hx-include="this" hx-target="#valor-field" hx-swap="innerHTML">
+    <div class="col-span-2">{% include "components/field.html" with field=form.espaco %}</div>
+    {% include "components/field.html" with field=form.data %}
+    {% include "components/field.html" with field=form.hora %}
+    {% include "components/field.html" with field=form.duracao %}
+    <div>
+      <label class="label" for="{{ form.valor_total.id_for_label }}">{{ form.valor_total.label }}</label>
+      <div id="valor-field" hx-disinherit="*">{{ form.valor_total }}</div>
+      {% for error in form.valor_total.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </div>
+  </div>
+
+  {% include "components/field.html" with field=form.observacoes %}
+
+  <div class="flex gap-2 pt-1">
+    <button class="btn-primary flex-1" type="submit">{% if reserva %}Salvar{% else %}Confirmar reserva{% endif %}</button>
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

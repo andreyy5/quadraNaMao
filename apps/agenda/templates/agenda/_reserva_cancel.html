@@ -1,0 +1,11 @@
+{% include "components/modal_header.html" with title="Cancelar reserva" %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="p-5">
+  {% csrf_token %}
+  {% if error %}<div class="form-alert mb-3" role="alert">{{ error }}</div>{% endif %}
+  <p>Cancelar a reserva de <strong>{{ reserva.cliente.nome }}</strong> em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}?</p>
+  <p class="mt-1 text-sm text-muted">O horário volta a ficar livre na agenda.</p>
+  <div class="mt-5 flex gap-2">
+    <button class="btn-danger flex-1" type="submit">Sim, cancelar</button>
+    <button class="btn-ghost" type="button" data-close-modal>Voltar</button>
+  </div>
+</form>

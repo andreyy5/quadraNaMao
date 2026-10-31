@@ -1,0 +1,16 @@
+<div class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+  <div class="flex items-center gap-1">
+    <a class="btn-icon" href="{{ previous_url }}" aria-label="Anterior">{% include "components/icon.html" with name="left" %}</a>
+    <a class="btn-icon" href="{{ next_url }}" aria-label="Próximo">{% include "components/icon.html" with name="right" %}</a>
+    <h1 class="ml-1 text-xl first-letter:uppercase md:text-2xl">{{ heading }}</h1>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a class="btn-secondary" href="{{ today_url }}">Hoje</a>
+    <div class="flex rounded-xl border border-border p-0.5" role="group" aria-label="Visualização">
+      <a class="tab min-h-9 {% if agenda_mode == 'day' %}is-active{% endif %}" href="{% url 'agenda:day' %}?data={{ day|date:'Y-m-d' }}">Dia</a>
+      <a class="tab min-h-9 {% if agenda_mode == 'week' %}is-active{% endif %}" href="{% url 'agenda:week' %}?data={{ day|date:'Y-m-d' }}{% if selected %}&espaco={{ selected.pk }}{% endif %}">Semana</a>
+    </div>
+    <button class="btn-secondary w-11 px-0 sm:w-auto sm:px-4" type="button" aria-label="Bloquear" hx-get="{% url 'agenda:bloqueio_create' %}?data={{ day|date:'Y-m-d' }}" hx-target="#modal-body">{% include "components/icon.html" with name="lock" %} <span class="hidden sm:inline">Bloquear</span></button>
+    <button class="btn-primary w-11 px-0 sm:w-auto sm:px-4" type="button" aria-label="Reservar" hx-get="{% url 'agenda:reserva_create' %}?data={{ day|date:'Y-m-d' }}{% if selected %}&espaco={{ selected.pk }}{% endif %}" hx-target="#modal-body">{% include "components/icon.html" with name="plus" %} <span class="hidden sm:inline">Reservar</span></button>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+{% load ui %}
+{% if cell.kind == "free" %}
+<button type="button" class="slot slot-free {% if cell.is_past %}is-past{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"
+        hx-get="{% url 'agenda:reserva_create' %}?espaco={{ column.espaco.pk }}&data={{ cell.inicio|date:'Y-m-d' }}&hora={{ cell.inicio|time:'H:i' }}&minutos={{ cell.minutes }}" hx-target="#modal-body"
+        aria-label="Reservar {{ column.espaco.nome }} às {{ cell.inicio|time:'H:i' }}">
+  <span class="tabular-nums">{{ cell.inicio|time:"H:i" }}</span>
+  {% if cell.valor is not None %}<span class="tabular-nums opacity-80">{{ cell.valor|brl }}</span>{% endif %}
+</button>
+{% elif cell.kind == "reserved" %}
+<button type="button" class="slot slot-reserved {% if not cell.reserva.is_open %}is-done{% endif %} {% if cell.has_block %}has-block{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col gap-0.5{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"
+        hx-get="{% url 'agenda:reserva_detail' cell.reserva.pk %}" hx-target="#modal-body"
+        aria-label="Reserva de {{ cell.reserva.cliente.nome }} às {{ cell.inicio|time:'H:i' }}, {{ cell.reserva.get_status_display }}">
+  <span class="w-full truncate text-[13px] font-medium">{{ cell.reserva.cliente.nome }}</span>
+  <span class="shrink-0 tabular-nums opacity-80">{{ cell.reserva.inicio|time:"H:i" }}–{{ cell.reserva.fim|time:"H:i" }}</span>
+  {% if cell.has_block %}<span class="mt-auto flex items-center gap-1 text-warning">Em bloqueio</span>{% elif not cell.is_compact and cell.reserva.status != "CONFIRMADA" %}<span class="mt-auto">{{ cell.reserva.get_status_display }}</span>{% endif %}
+</button>
+{% else %}
+<a class="slot slot-blocked {% if cell.is_compact %}items-center gap-2{% else %}flex-col{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px" href="{% url 'agenda:bloqueio_impact' %}?ids={{ cell.bloqueio.pk }}">
+  <span class="flex items-center gap-1 font-medium">{{ cell.bloqueio.get_motivo_display }}</span>
+  <span class="tabular-nums opacity-80">até {{ cell.fim|time:"H:i" }}</span>
+</a>
+{% endif %}

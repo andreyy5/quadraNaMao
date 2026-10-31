@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-none{% endblock %}
+
+{% block content %}
+{% include "agenda/_toolbar.html" %}
+
+{% if grid %}
+<div x-data="agendaTabs([{% for column in grid.columns %}{{ column.espaco.pk }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+  {% if grid.columns|length > 1 %}
+  <div class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 md:hidden" role="group" aria-label="Escolher espaço">
+    {% for column in grid.columns %}
+    <button type="button" class="chip" data-theme="{{ column.espaco.tema }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}" :aria-pressed="active === {{ column.espaco.pk }}" @click="select({{ column.espaco.pk }})">{{ column.espaco.nome }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% include "agenda/_grid.html" %}
+</div>
+{% else %}
+  {% if request.user.is_owner %}
+  {% url 'espacos:create' as create_url %}
+  {% include "components/empty_state.html" with tema="areia" title="Sua agenda começa aqui" text="Cadastre o primeiro espaço para ver os horários do dia." url=create_url action="Cadastrar espaço" %}
+  {% else %}
+  {% include "components/empty_state.html" with tema="areia" title="Nenhum espaço ativo" text="Peça ao dono do estabelecimento para cadastrar os espaços." %}
+  {% endif %}
+{% endif %}
+{% endblock %}
