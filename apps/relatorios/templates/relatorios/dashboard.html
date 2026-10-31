@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Hoje · {{ PRODUCT_NAME }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between gap-3">
+  <div>
+    <h1>Olá, {{ request.user.get_short_name }}</h1>
+    <p class="text-muted first-letter:uppercase">{{ today|date:"l, j \d\e F"|lower }}</p>
+  </div>
+  <a class="btn-primary" href="{% url 'agenda:day' %}">Abrir agenda</a>
+</div>
+
+{% if checklist %}
+<section class="card mb-6 p-5" aria-labelledby="primeiros-passos">
+  <h2 id="primeiros-passos" class="mb-3">Primeiros passos</h2>
+  <ol class="flex flex-col gap-1">
+    {% for step in checklist %}
+    <li>
+      <a class="flex min-h-11 items-center gap-3 rounded-lg px-2 hover:bg-surface-2 {% if step.done %}text-muted line-through{% endif %}" href="{{ step.url }}">
+        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border {% if step.done %}border-primary bg-primary text-on-primary{% else %}border-border text-muted{% endif %} text-xs">{% if step.done %}{% include "components/icon.html" with name="check" %}{% else %}{{ forloop.counter }}{% endif %}</span>
+        {{ step.label }}
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+<dl class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="card p-4"><dt class="text-sm text-muted">Reservas hoje</dt><dd class="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums">{{ summary.reservas|length }}</dd></div>
+  <div class="card p-4"><dt class="text-sm text-muted">Ocupação</dt><dd class="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums">{{ summary.occupancy }}%</dd></div>
+  <div class="card p-4"><dt class="text-sm text-muted">Horários livres</dt><dd class="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums">{{ summary.free_slots }}</dd></div>
+  <div class="card p-4"><dt class="text-sm text-muted">Previsto hoje</dt><dd class="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums">{{ summary.expected|brl }}</dd></div>
+</dl>
+
+<section aria-labelledby="proximos">
+  <h2 id="proximos" class="mb-2">Próximos jogos</h2>
+  {% if next_games %}
+  <div class="card divide overflow-hidden">
+    {% for reserva in next_games %}
+    <button class="row-link w-full text-left" type="button" data-theme="{{ reserva.espaco.tema }}" hx-get="{% url 'agenda:reserva_detail' reserva.pk %}" hx-target="#modal-body">
+      <span class="w-14 shrink-0 font-semibold tabular-nums text-primary">{{ reserva.inicio|time:"H:i" }}</span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-medium">{{ reserva.cliente.nome }}</span>
+        <span class="block truncate text-sm text-muted">{{ reserva.espaco.nome }} · até {{ reserva.fim|time:"H:i" }}</span>
+      </span>
+      {% if reserva.status != "CONFIRMADA" %}{% include "components/status_badge.html" %}{% endif %}
+    </button>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="card p-6 text-center text-muted">Nenhum jogo pela frente hoje.</p>
+  {% endif %}
+</section>
+{% endblock %}
