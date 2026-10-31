@@ -1,0 +1,71 @@
+{% extends "base_html.html" %}
+{% load ui %}
+
+{% block body %}
+<div class="md:flex" hx-boost="true">
+  <aside class="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-border p-3 md:flex" aria-label="Menu principal">
+    <a href="{% url 'relatorios:dashboard' %}" class="mb-6 mt-1 block px-3">{% include "components/wordmark.html" %}</a>
+    <nav class="flex flex-1 flex-col gap-1">
+      <a class="nav-side {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
+      <a class="nav-side {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
+      <a class="nav-side {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
+      {% if request.user.is_owner %}
+      <a class="nav-side {% nav_active '/espacos' %}" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
+      <a class="nav-side {% nav_active '/ajustes' '/conta' %}" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
+      {% else %}
+      <a class="nav-side {% nav_active '/conta' %}" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
+      {% endif %}
+    </nav>
+    <div class="border-t border-border pt-3">
+      <p class="truncate px-3 text-sm font-medium">{{ request.tenant.nome }}</p>
+      <p class="truncate px-3 text-xs text-muted">{{ request.user.nome }}</p>
+      <div class="mt-2 flex items-center">
+        {% include "components/theme_toggle.html" %}
+        <form method="post" action="{% url 'contas:logout' %}" hx-boost="false">
+          {% csrf_token %}
+          <button class="btn-icon" type="submit" aria-label="Sair" title="Sair">{% include "components/icon.html" with name="logout" %}</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+    <header class="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+      <a href="{% url 'relatorios:dashboard' %}">{% include "components/wordmark.html" %}</a>
+      <div class="flex items-center">
+        {% include "components/theme_toggle.html" %}
+        <form method="post" action="{% url 'contas:logout' %}" hx-boost="false">
+          {% csrf_token %}
+          <button class="btn-icon" type="submit" aria-label="Sair" title="Sair">{% include "components/icon.html" with name="logout" %}</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full {% block main_width %}max-w-4xl{% endblock %} px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="hidden px-8 pb-6 text-xs text-muted md:block">{{ PRODUCT_NAME }}</footer>
+  </div>
+
+  <nav class="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Menu principal">
+    <a class="nav-bottom {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
+    <a class="nav-bottom {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
+    <a class="nav-bottom {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
+    {% if request.user.is_owner %}
+    <a class="nav-bottom {% nav_active '/espacos' %}" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
+    <a class="nav-bottom {% nav_active '/ajustes' '/conta' %}" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
+    {% else %}
+    <a class="nav-bottom {% nav_active '/conta' %}" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
+    {% endif %}
+  </nav>
+</div>
+
+<dialog id="modal" aria-label="Painel"><div id="modal-body"></div></dialog>
+
+<div id="toasts" class="fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 md:bottom-6 md:left-auto md:right-6 md:items-end" aria-live="polite">
+  {% for message in messages %}
+  <div data-toast class="card px-4 py-3 text-sm shadow-card {% if message.tags == 'error' %}border-danger/50{% endif %}" role="status">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+<button type="button" class="btn-icon" x-data="themeToggle" @click="toggle" aria-label="Alternar modo claro e escuro" title="Alternar modo claro e escuro">
+  <span x-show="mode === 'dark'">{% include "components/icon.html" with name="sun" %}</span>
+  <span x-show="mode === 'light'" x-cloak>{% include "components/icon.html" with name="moon" %}</span>
+</button>

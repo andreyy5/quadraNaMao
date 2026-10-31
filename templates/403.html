@@ -1,0 +1,11 @@
+{% extends "base_html.html" %}
+
+{% block title %}Sem acesso · {{ PRODUCT_NAME }}{% endblock %}
+
+{% block body %}
+<main class="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+  <h1>Você não tem acesso a esta tela</h1>
+  <p class="mt-2 text-muted">Fale com o dono do estabelecimento se precisar dessa permissão.</p>
+  <a class="btn-primary mt-6" href="/">Voltar para o início</a>
+</main>
+{% endblock %}
