@@ -27,6 +27,8 @@ Consequências a lembrar:
 
 **Link do WhatsApp em vez de integração.** Os botões abrem uma conversa em `wa.me` e quem envia é o atendente. Não depende de aceite nem de API, que continuam para a Fase 5.
 
+**Painel de reserva.** Quem clica em um horário livre vê só o horário em destaque e os dados do cliente; o resto abre em "Alterar" ou quando há erro de horário. A lista de horários livres (`free_starts`) e o aviso de conflito (`slot_problem`) só consultam: quem garante é a constraint ao gravar. Horários passados ficam fora da lista, mas continuam possíveis em "Outro horário", porque o painel permite passar o caderno a limpo.
+
 **Sem arrastar para remarcar, por enquanto.** Mover uma reserva para outra faixa de preço exige decidir se o valor muda ou se mantém, e essa regra não está no planner. A remarcação continua pelo formulário, que recalcula o valor à vista de quem edita.
 
 **Admin restrito.** O admin do Django cobre apenas `Usuario` e `Estabelecimento`, porque o superusuário não tem tenant e os dados de negócio são operados no painel.
