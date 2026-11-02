@@ -123,6 +123,19 @@ def test_lists_and_search_do_not_leak(owner_client, espaco, foreign):
     assert "Cliente Alheio" not in response.content.decode()
 
 
+def test_slots_do_not_use_other_tenants_records(owner_client, espaco, foreign):
+    params = {"espaco": foreign["espaco"].pk, "data": DAY.isoformat(), "hora": "12:00", "duracao": 60}
+    response = owner_client.get(reverse("agenda:reserva_slots"), params, headers=HX)
+    assert not response.context.get("ready")
+
+    params = {"espaco": espaco.pk, "data": DAY.isoformat(), "hora": "10:00", "duracao": 60}
+    response = owner_client.get(
+        reverse("agenda:reserva_slots"), {**params, "reserva": foreign["reserva"].pk}, headers=HX
+    )
+    assert response.status_code == 200
+    assert "10:00" in response.context["slots"]
+
+
 def test_week_strip_ignores_other_tenants(tenant, espaco, foreign):
     assert sum(item["count"] for item in services.week_strip(tenant, DAY)) == 0
 

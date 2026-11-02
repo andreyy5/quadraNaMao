@@ -1,0 +1,16 @@
+{% if ready %}
+  {% if problem %}
+  <p class="form-alert mb-2 flex items-start gap-2 py-2.5" role="alert"><span class="text-danger [&_svg]:h-4 [&_svg]:w-4">{% include "components/icon.html" with name="alert" %}</span> {{ problem }}</p>
+  {% elif hora %}
+  <p class="mb-2 flex items-center gap-1.5 text-xs text-success"><span class="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true"></span> {{ hora }} está livre.</p>
+  {% endif %}
+  {% if slots %}
+  <div class="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+    {% for slot in slots %}
+    <button type="button" class="time-chip {% if slot == hora %}is-selected{% endif %}" data-hora="{{ slot }}" {% if slot == hora %}aria-pressed="true"{% endif %} @click="pickTime($el.dataset.hora)">{{ slot }}</button>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="rounded-xl border border-dashed border-border px-3.5 py-3 text-center text-sm text-muted">Sem horários livres nesse dia para essa duração.</p>
+  {% endif %}
+{% endif %}

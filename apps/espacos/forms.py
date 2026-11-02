@@ -22,6 +22,10 @@ class EspacoForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Espaco
         fields = ["nome", "tipo", "modalidades", "capacidade", "ordem", "ativo"]
+        widgets = {
+            "tipo": forms.RadioSelect,
+            "nome": forms.TextInput(attrs={"placeholder": "Ex.: Quadra 1"}),
+        }
 
 
 class HorarioDiaForm(StyledFormMixin, forms.Form):
@@ -63,6 +67,7 @@ class TabelaPrecoForm(StyledFormMixin, forms.Form):
         coerce=int,
         initial=60,
         choices=[(30, "30 min"), (45, "45 min"), (60, "1 hora"), (90, "1h30"), (120, "2 horas")],
+        widget=forms.RadioSelect,
     )
     valor = money_field(label="Valor do horário")
-    valor_sinal = money_field(label="Sinal (opcional)", required=False)
+    valor_sinal = money_field(label="Sinal", required=False)

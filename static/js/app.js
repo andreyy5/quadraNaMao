@@ -24,6 +24,43 @@
     event.detail.headers["X-CSRFToken"] = readCookie("csrftoken");
   });
 
+  /* Telefone formatado enquanto digita. Em captura, para o x-model já receber o valor formatado. */
+  function formatPhone(raw) {
+    const digits = raw.replace(/\D/g, "").slice(0, 11);
+    if (!digits) return "";
+    if (digits.length <= 2) return `(${digits}`;
+    const area = `(${digits.slice(0, 2)}) `;
+    const rest = digits.slice(2);
+    if (rest.length <= 4) return area + rest;
+    const split = rest.length === 9 ? 5 : 4;
+    return `${area}${rest.slice(0, split)}-${rest.slice(split)}`;
+  }
+
+  document.addEventListener(
+    "input",
+    (event) => {
+      const input = event.target;
+      if (input.dataset.mask !== "phone" || input.value.startsWith("+")) return;
+      if (input.selectionStart === input.value.length) input.value = formatPhone(input.value);
+    },
+    true
+  );
+
+  function initials(name) {
+    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+    return parts.length ? (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() : "";
+  }
+
+  function shortDate(iso) {
+    if (!iso) return "";
+    const [year, month, day] = iso.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+    });
+  }
+
   /* Barra de progresso: a atualização periódica da agenda não conta, e respostas rápidas nem chegam a aparecer. */
   let pending = 0;
   let progressTimer = null;
@@ -275,6 +312,8 @@
   document.addEventListener("alpine:init", () => {
     const Alpine = window.Alpine;
 
+    Alpine.magic("initials", () => initials);
+
     Alpine.data("themeToggle", () => ({
       mode: document.documentElement.dataset.mode || "dark",
       toggle() {
@@ -311,12 +350,64 @@
       },
     }));
 
+    Alpine.data("dayPicker", () => ({
+      days: [],
+      selected: "",
+      init() {
+        this.input = this.$el.querySelector('input[type="date"]');
+        this.selected = this.input.value;
+        this.input.addEventListener("change", () => {
+          this.selected = this.input.value;
+          this.build();
+        });
+        this.build();
+      },
+      build() {
+        const toIso = (date) =>
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const today = new Date();
+        const todayIso = toIso(today);
+        const dates = Array.from({ length: 14 }, (_, offset) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset));
+        // Uma data fora das próximas duas semanas, como ao remarcar, continua à vista.
+        if (this.selected && !dates.some((date) => toIso(date) === this.selected)) {
+          const [year, month, day] = this.selected.split("-").map(Number);
+          const extra = new Date(year, month - 1, day);
+          if (extra < today) dates.unshift(extra);
+          else dates.push(extra);
+        }
+        this.days = dates.map((date) => ({
+          iso: toIso(date),
+          isToday: toIso(date) === todayIso,
+          weekday: date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
+          day: String(date.getDate()).padStart(2, "0"),
+          label: date.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }),
+        }));
+        this.$nextTick(() => this.center());
+      },
+      center() {
+        const scroller = this.$refs.scroller;
+        const pill = scroller && scroller.querySelector(".is-selected");
+        if (pill) scroller.scrollLeft = pill.offsetLeft - scroller.offsetLeft - scroller.clientWidth / 2 + pill.offsetWidth / 2;
+      },
+      pick(iso) {
+        this.input.value = iso;
+        this.input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      openCalendar() {
+        if (this.input.showPicker) this.input.showPicker();
+        else this.input.focus();
+      },
+    }));
+
     Alpine.data("reservaForm", (data) => ({
       clienteId: data.cliente || "",
       nome: data.nome || "",
       telefone: data.telefone || "",
-      resumo: { espaco: "", dia: "", horario: "" },
+      editing: data.editing !== "false",
+      tema: "",
+      resumo: { espaco: "", dia: "", horario: "", valor: "" },
       init() {
+        this.form = this.$el;
         this.refreshSummary();
       },
       pick(option) {
@@ -325,32 +416,76 @@
         this.telefone = option.telefone;
         this.clearResults();
       },
+      clearClient() {
+        this.clienteId = "";
+        this.nome = "";
+        this.telefone = "";
+      },
       clearResults() {
         this.$refs.results.innerHTML = "";
       },
+      pickTime(hora) {
+        const input = this.form.querySelector('[name="hora"]');
+        input.value = hora;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
       refreshSummary() {
-        const field = (name) => this.$root.querySelector(`[name="${name}"]`);
-        const espaco = field("espaco");
-        const dia = field("data").value;
-        const hora = field("hora").value;
-        const minutos = Number(field("duracao").value);
-        this.resumo.espaco = espaco.selectedOptions[0] ? espaco.selectedOptions[0].text : "";
-        this.resumo.dia = "";
+        const field = (selector) => this.form.querySelector(selector);
+        const espaco = field('[name="espaco"]:checked');
+        const duracao = field('[name="duracao"]:checked');
+        const hora = field('[name="hora"]').value;
+        const valor = field('[name="valor_total"]');
+        this.tema = espaco ? espaco.closest("label").dataset.theme : "";
+        this.resumo.espaco = espaco ? espaco.closest("label").innerText.trim() : "";
+        this.resumo.dia = shortDate(field('[name="data"]').value);
+        this.resumo.valor = valor && valor.value ? `R$ ${valor.value}` : "";
         this.resumo.horario = "";
-        if (dia) {
-          const [year, month, day] = dia.split("-").map(Number);
-          this.resumo.dia = new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
-            weekday: "short",
-            day: "2-digit",
-            month: "2-digit",
-          });
-        }
-        if (hora && minutos) {
+        if (hora && duracao) {
           const [hours, mins] = hora.split(":").map(Number);
-          const end = hours * 60 + mins + minutos;
+          const end = hours * 60 + mins + Number(duracao.value);
           const pad = (value) => String(value).padStart(2, "0");
           this.resumo.horario = `${hora}–${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`;
         }
+      },
+    }));
+
+    Alpine.data("bloqueioForm", (data) => ({
+      diaTodo: data.diaTodo,
+      allSelected: false,
+      resumo: { horario: "", dia: "", espacos: "" },
+      init() {
+        this.form = this.$el;
+        this.refresh();
+      },
+      boxes() {
+        return Array.from(this.form.querySelectorAll('[name="espacos"]'));
+      },
+      toggleAll() {
+        const value = !this.allSelected;
+        this.boxes().forEach((box) => {
+          box.checked = value;
+        });
+        this.refresh();
+      },
+      refresh() {
+        const value = (name) => this.form.querySelector(`[name="${name}"]`).value;
+        const checked = this.boxes().filter((box) => box.checked);
+        this.allSelected = checked.length === this.boxes().length;
+        this.resumo.dia = shortDate(value("data"));
+        this.resumo.espacos = checked.length
+          ? checked.map((box) => box.closest("label").innerText.trim()).join(", ")
+          : "Escolha os espaços";
+        const inicio = value("hora_inicio");
+        const fim = value("hora_fim");
+        this.resumo.horario = this.diaTodo ? "Dia todo" : inicio && fim ? `${inicio}–${fim}` : "Escolha o horário";
+      },
+    }));
+
+    Alpine.data("dayPresets", () => ({
+      apply(values) {
+        this.$root.querySelectorAll('[name="dias"]').forEach((box) => {
+          box.checked = values.includes(Number(box.value));
+        });
       },
     }));
 

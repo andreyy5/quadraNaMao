@@ -252,6 +252,53 @@ def _check_available(espaco, inicio, fim):
         raise SpaceBlocked(bloqueio)
 
 
+def free_starts(espaco, day, minutes, ignore=None):
+    """Inícios livres no dia para essa duração, seguindo a grade do espaço. Horários que já passaram ficam de fora.
+
+    Olha também o expediente do dia anterior: 00:30 de sábado pode ser ainda a noite de sexta.
+    """
+    schedule = load_schedule(espaco)
+    duration = timedelta(minutes=minutes)
+    now = timezone.now()
+    starts = []
+    for opening_day in (day - timedelta(days=1), day):
+        period = schedule.period(opening_day)
+        if period is None:
+            continue
+        opens, closes = period
+        busy = _overlapping(Bloqueio, [espaco], opens, closes)[espaco.pk] + [
+            reserva
+            for reserva in _overlapping(Reserva, [espaco], opens, closes)[espaco.pk]
+            if reserva != ignore
+        ]
+        cursor = opens
+        while cursor + duration <= closes:
+            clash = next(
+                (item for item in busy if item.inicio < cursor + duration and item.fim > cursor), None
+            )
+            if clash:
+                cursor = clash.fim.astimezone(schedule.tz)
+                continue
+            if cursor.date() == day and cursor >= now:
+                starts.append(cursor)
+            cursor += timedelta(minutes=schedule.slot_minutes(cursor, opening_day))
+    return starts
+
+
+def slot_problem(espaco, inicio, fim, ignore=None):
+    """Por que o período não pode ser reservado, ou None se está livre.
+
+    Serve só para avisar antes de salvar: quem garante de verdade é a constraint, ao gravar.
+    """
+    try:
+        _check_available(espaco, inicio, fim)
+    except ReservationError as exc:
+        return str(exc)
+    if any(reserva != ignore for reserva in _overlapping(Reserva, [espaco], inicio, fim)[espaco.pk]):
+        return str(ReservationConflict())
+    return None
+
+
 def _is_conflict(error):
     diag = getattr(error.__cause__, "diag", None)
     return getattr(diag, "constraint_name", None) == CONFLICT_CONSTRAINT

@@ -5,29 +5,44 @@
 
 {% block content %}
 {% include "espacos/_tabs.html" with active="precos" %}
-<form method="post" class="card flex flex-col gap-4 p-5" data-theme="{{ espaco.tema }}">
+<form method="post" class="form-card" data-theme="{{ espaco.tema }}" x-data="dayPresets">
   {% csrf_token %}
-  {% include "components/form_errors.html" %}
-  <fieldset>
-    <legend class="label">{{ form.dias.label }}</legend>
-    <div class="flex flex-wrap gap-2">
-      {% for option in form.dias %}
-      <label class="chip">{{ option.tag }} {{ option.choice_label }}</label>
-      {% endfor %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    <fieldset aria-labelledby="preco-dias">
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
+        <span class="label mb-0" id="preco-dias">{{ form.dias.label }}</span>
+        <div class="flex gap-3">
+          <button type="button" class="link-action" @click="apply([0, 1, 2, 3, 4])">Seg a Sex</button>
+          <button type="button" class="link-action" @click="apply([5, 6])">Fim de semana</button>
+          <button type="button" class="link-action" @click="apply([0, 1, 2, 3, 4, 5, 6])">Todos</button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for option in form.dias %}
+        <label class="chip">{{ option.tag }} {{ option.choice_label }}</label>
+        {% endfor %}
+      </div>
+      {% for error in form.dias.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+    <div class="grid grid-cols-2 gap-4">
+      {% include "components/field.html" with field=form.hora_inicio %}
+      {% include "components/field.html" with field=form.hora_fim %}
     </div>
-    {% for error in form.dias.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
-  </fieldset>
-  <div class="grid grid-cols-2 gap-4">
-    {% include "components/field.html" with field=form.hora_inicio %}
-    {% include "components/field.html" with field=form.hora_fim %}
+    <fieldset>
+      <legend class="label">{{ form.duracao.label }}</legend>
+      <div class="flex flex-wrap gap-2">
+        {% for option in form.duracao %}<label class="chip">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+      </div>
+      {% for error in form.duracao.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+    <div class="grid grid-cols-2 gap-4">
+      {% include "components/field.html" with field=form.valor prefix="R$" %}
+      {% include "components/field.html" with field=form.valor_sinal prefix="R$" %}
+    </div>
   </div>
-  {% include "components/field.html" with field=form.duracao %}
-  <div class="grid grid-cols-2 gap-4">
-    {% include "components/field.html" with field=form.valor %}
-    {% include "components/field.html" with field=form.valor_sinal %}
-  </div>
-  <div class="flex gap-2">
-    <button class="btn-primary" type="submit">Salvar</button>
+  <div class="form-card-foot">
+    <button class="btn-primary" type="submit">Salvar faixa</button>
     <a class="btn-ghost" href="{% url 'espacos:precos' espaco.pk %}">Voltar</a>
   </div>
 </form>

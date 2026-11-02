@@ -9,6 +9,7 @@ urlpatterns = [
     path("semana/", views.AgendaWeekView.as_view(), name="week"),
     path("reservas/nova/", views.ReservaCreateView.as_view(), name="reserva_create"),
     path("reservas/valor/", views.ReservaQuoteView.as_view(), name="reserva_quote"),
+    path("reservas/horarios/", views.ReservaSlotsView.as_view(), name="reserva_slots"),
     path("reservas/cancelar-lote/", views.ReservaBulkCancelView.as_view(), name="reserva_bulk_cancel"),
     path("reservas/<int:pk>/", views.ReservaDetailView.as_view(), name="reserva_detail"),
     path("reservas/<int:pk>/editar/", views.ReservaUpdateView.as_view(), name="reserva_update"),

@@ -5,16 +5,18 @@
 
 {% block content %}
 {% include "estabelecimentos/_tabs.html" with active="estabelecimento" %}
-<form method="post" class="card flex flex-col gap-4 p-5">
+<form method="post" class="form-card">
   {% csrf_token %}
-  {% include "components/form_errors.html" %}
-  {% include "components/field.html" with field=form.nome %}
-  <div class="grid gap-4 sm:grid-cols-2">
-    {% include "components/field.html" with field=form.documento %}
-    {% include "components/field.html" with field=form.telefone %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.nome %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "components/field.html" with field=form.documento %}
+      {% include "components/field.html" with field=form.telefone icon="message" %}
+    </div>
+    {% include "components/field.html" with field=form.endereco %}
+    {% include "components/field.html" with field=form.fuso_horario icon="clock" %}
   </div>
-  {% include "components/field.html" with field=form.endereco %}
-  {% include "components/field.html" with field=form.fuso_horario %}
-  <div><button class="btn-primary" type="submit">Salvar</button></div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">Salvar alterações</button></div>
 </form>
 {% endblock %}

@@ -1,6 +1,8 @@
 <div>
-  <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-  {{ field }}
+  <label class="label" for="{{ field.id_for_label }}">{{ field.label }}{% if not field.field.required and not hide_optional %} <span class="label-optional">opcional</span>{% endif %}</label>
+  {% if prefix %}<div class="input-group"><span class="input-affix">{{ prefix }}</span>{{ field }}</div>
+  {% elif icon %}<div class="input-group"><span class="input-affix">{% include "components/icon.html" with name=icon %}</span>{{ field }}</div>
+  {% else %}{{ field }}{% endif %}
   {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
   {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
 </div>

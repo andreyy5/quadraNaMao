@@ -1,0 +1,17 @@
+{% comment %}Faixa de dias para escolher a data sem abrir calendário. O campo de data continua sendo o que é enviado.{% endcomment %}
+<div x-data="dayPicker">
+  <div class="mb-1.5 flex items-center justify-between gap-2">
+    <span class="label mb-0">{{ field.label }}</span>
+    <button type="button" class="link-action" @click="openCalendar"><span class="[&_svg]:h-4 [&_svg]:w-4">{% include "components/icon.html" with name="calendar" %}</span> Outra data</button>
+  </div>
+  <div class="day-scroller" x-ref="scroller">
+    <template x-for="item in days" :key="item.iso">
+      <button type="button" class="day-pill w-[3.25rem] flex-none" :class="{ 'is-selected': item.iso === selected, 'is-today': item.isToday }" :aria-pressed="item.iso === selected" :aria-label="item.label" @click="pick(item.iso)">
+        <span class="day-pill-name" x-text="item.weekday"></span>
+        <span class="day-pill-number" x-text="item.day"></span>
+      </button>
+    </template>
+  </div>
+  <div class="sr-only">{{ field }}</div>
+  {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+</div>

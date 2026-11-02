@@ -229,3 +229,83 @@ def test_reservation_detail_links_to_whatsapp(owner_client, espaco, cliente):
         reverse("agenda:reserva_detail", args=[reserva.pk]), headers=HX
     ).content.decode()
     assert f"https://wa.me/{cliente.telefone.removeprefix('+')}?text=" in content
+
+
+def slots(client, espaco, **overrides):
+    params = {"espaco": espaco.pk, "data": DAY.isoformat(), "hora": "10:00", "duracao": 60, **overrides}
+    return client.get(reverse("agenda:reserva_slots"), params, headers=HX)
+
+
+def test_slots_endpoint_lists_free_times_and_marks_the_chosen_one(owner_client, espaco):
+    response = slots(owner_client, espaco)
+    assert "10:00" in response.context["slots"]
+    assert response.context["problem"] is None
+    assert "10:00 está livre" in response.content.decode()
+
+
+def test_slots_endpoint_warns_about_a_conflict_before_saving(owner_client, espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+    response = slots(owner_client, espaco)
+    assert "10:00" not in response.context["slots"]
+    assert "já está reservado" in response.content.decode()
+
+
+def test_slots_endpoint_frees_the_reservation_being_edited(owner_client, espaco, cliente):
+    reserva = services.create_reservation(espaco, cliente, at(10), at(11))
+    response = slots(owner_client, espaco, reserva=reserva.pk)
+    assert "10:00" in response.context["slots"]
+    assert response.context["problem"] is None
+
+
+def test_slots_endpoint_without_a_valid_space_shows_nothing(owner_client):
+    response = owner_client.get(reverse("agenda:reserva_slots"), {"espaco": 999, "duracao": 60}, headers=HX)
+    assert response.status_code == 200
+    assert not response.context.get("ready")
+
+
+def test_reservation_form_opens_short_when_a_free_slot_was_clicked(owner_client, espaco):
+    url = reverse("agenda:reserva_create")
+    params = {"espaco": espaco.pk, "data": DAY.isoformat(), "hora": "10:00", "minutos": 60}
+    assert owner_client.get(url, params, headers=HX).context["slot_chosen"] is True
+    assert owner_client.get(url, headers=HX).context["slot_chosen"] is False
+
+
+def test_reservation_form_keeps_a_duration_outside_the_standard_options(owner_client, espaco):
+    url = reverse("agenda:reserva_create")
+    content = owner_client.get(url, {"espaco": espaco.pk, "minutos": 75}, headers=HX).content.decode()
+    assert 'value="75"' in content
+    assert "75 min" in content
+
+
+def test_reservation_form_marks_the_chosen_space_and_duration(owner_client, espaco):
+    url = reverse("agenda:reserva_create")
+    form = owner_client.get(url, {"espaco": espaco.pk, "minutos": 90}, headers=HX).context["form"]
+    assert next(option for option in form["duracao"] if option.data["selected"]).data["value"] == 90
+    assert next(option for option in form["espaco"] if option.data["selected"]).data["value"] == espaco.pk
+
+
+def test_block_form_offers_reasons_as_options(owner_client, espaco):
+    content = owner_client.get(reverse("agenda:bloqueio_create"), headers=HX).content.decode()
+    assert 'name="motivo"' in content
+    assert 'value="CHUVA"' in content
+
+
+def test_new_reservation_opens_on_the_first_free_time(owner_client, espaco, cliente):
+    tomorrow_start = at(8, day=timezone.localdate() + timedelta(days=30))
+    services.create_reservation(espaco, cliente, tomorrow_start, tomorrow_start + timedelta(hours=1))
+    params = {"espaco": espaco.pk, "data": tomorrow_start.date().isoformat()}
+    form = owner_client.get(reverse("agenda:reserva_create"), params, headers=HX).context["form"]
+    assert form.initial["hora"] == time(9)
+
+
+def test_reservation_form_stays_short_when_only_the_client_is_wrong(owner_client, espaco):
+    data = payload(espaco, cliente_nome="", compacto="1")
+    response = owner_client.post(reverse("agenda:reserva_create"), data, headers=HX)
+    assert response.context["slot_chosen"] is True
+
+
+def test_reservation_form_expands_on_a_time_error(owner_client, espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+    response = owner_client.post(reverse("agenda:reserva_create"), payload(espaco, compacto="1"), headers=HX)
+    assert "já está reservado" in response.content.decode()
+    assert response.context["slot_chosen"] is False

@@ -1,42 +1,53 @@
 {% load clientes_ui ui %}
-{% include "components/modal_header.html" with title="Reserva" %}
-<div class="p-5" data-theme="{{ reserva.espaco.tema }}">
-  <div class="flex items-start justify-between gap-3">
-    <div class="min-w-0">
-      <a class="block truncate text-lg font-semibold transition-colors hover:text-primary" href="{% url 'clientes:detail' reserva.cliente_id %}">{{ reserva.cliente.nome }}</a>
-      <p class="text-sm tabular-nums text-muted">{{ reserva.cliente.telefone|telefone }}</p>
+<div data-theme="{{ reserva.espaco.tema }}">
+  {% include "components/modal_header.html" with title="Reserva" %}
+  <div class="sheet-body">
+    <div class="ticket">
+      <div class="min-w-0">
+        <p class="ticket-time">{{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }}</p>
+        <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m/Y" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span></p>
+      </div>
+      <div class="flex shrink-0 flex-col items-end gap-1">
+        {% include "components/status_badge.html" %}
+        <p class="font-semibold tabular-nums">{{ reserva.valor_total|brl }}</p>
+      </div>
     </div>
-    {% include "components/status_badge.html" %}
-  </div>
 
-  <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-    <div><dt class="text-muted">Espaço</dt><dd class="font-medium">{{ reserva.espaco.nome }}</dd></div>
-    <div><dt class="text-muted">Valor</dt><dd class="font-medium tabular-nums">{{ reserva.valor_total|brl }}</dd></div>
-    <div><dt class="text-muted">Dia</dt><dd class="font-medium tabular-nums">{{ reserva.inicio|date:"D, d/m/Y" }}</dd></div>
-    <div><dt class="text-muted">Horário</dt><dd class="font-medium tabular-nums">{{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }}</dd></div>
-  </dl>
-  {% with wa=reserva.cliente.telefone|whatsapp_url %}{% if wa %}
-  <a class="btn-whatsapp mt-4 w-full" target="_blank" rel="noopener" href="{{ wa }}{% if reserva.is_open %}?text={% filter urlencode %}Olá, {{ reserva.cliente.nome }}! Sobre sua reserva em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}:{% endfilter %}{% endif %}">{% include "components/icon.html" with name="message" %} Chamar no WhatsApp</a>
-  {% endif %}{% endwith %}
-  {% if reserva.observacoes %}<p class="mt-3 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{{ reserva.observacoes }}</p>{% endif %}
+    <div class="client-card">
+      <span class="avatar" aria-hidden="true">{{ reserva.cliente.nome|initials }}</span>
+      <a class="min-w-0 flex-1" href="{% url 'clientes:detail' reserva.cliente_id %}">
+        <span class="block truncate font-medium transition-colors hover:text-primary">{{ reserva.cliente.nome }}</span>
+        <span class="block truncate text-sm tabular-nums text-muted">{{ reserva.cliente.telefone|telefone }}</span>
+      </a>
+      {% with wa=reserva.cliente.telefone|whatsapp_url %}{% if wa %}
+      <a class="btn-whatsapp min-h-10" target="_blank" rel="noopener" href="{{ wa }}{% if reserva.is_open %}?text={% filter urlencode %}Olá, {{ reserva.cliente.nome }}! Sobre sua reserva em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}:{% endfilter %}{% endif %}">{% include "components/icon.html" with name="message" %} WhatsApp</a>
+      {% endif %}{% endwith %}
+    </div>
+
+    {% if reserva.observacoes %}<p class="whitespace-pre-line rounded-xl bg-surface-2/70 px-3.5 py-3 text-sm">{{ reserva.observacoes }}</p>{% endif %}
+
+    {% if eventos %}
+    <details class="text-sm">
+      <summary class="cursor-pointer text-muted transition-colors hover:text-text">Histórico</summary>
+      <ul class="mt-2 flex flex-col gap-1.5">
+        {% for evento in eventos %}
+        <li><span class="font-medium">{{ evento.get_acao_display }}</span> <span class="text-muted">· {{ evento.criado_em|date:"d/m H:i" }}{% if evento.usuario %} · {{ evento.usuario.nome }}{% endif %}{% if evento.detalhes %} · {{ evento.detalhes }}{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </div>
 
   {% if reserva.is_open %}
-  <div class="mt-5 grid grid-cols-2 gap-2">
-    <button class="btn-primary col-span-2" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "concluida"}'>{% include "components/icon.html" with name="check" %} Marcar como concluída</button>
-    <button class="btn-secondary" type="button" hx-get="{% url 'agenda:reserva_update' reserva.pk %}" hx-target="#modal-body">Editar ou remarcar</button>
-    <button class="btn-secondary" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "nao_compareceu"}'>Não compareceu</button>
-    <button class="btn-danger col-span-2" type="button" hx-get="{% url 'agenda:reserva_cancel' reserva.pk %}" hx-target="#modal-body">Cancelar reserva</button>
+  <div class="sheet-foot flex-col items-stretch">
+    <div class="flex gap-2">
+      <button class="btn-primary flex-1" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "concluida"}'>{% include "components/icon.html" with name="check" %} Concluir</button>
+      <button class="btn-secondary flex-1" type="button" hx-get="{% url 'agenda:reserva_update' reserva.pk %}" hx-target="#modal-body">Editar ou remarcar</button>
+    </div>
+    <div class="flex justify-between gap-2">
+      <button class="link-action min-h-9" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "nao_compareceu"}'>Não compareceu</button>
+      <button class="link-action min-h-9 text-danger hover:text-danger" type="button" hx-get="{% url 'agenda:reserva_cancel' reserva.pk %}" hx-target="#modal-body">Cancelar reserva</button>
+    </div>
   </div>
-  {% endif %}
-
-  {% if eventos %}
-  <details class="mt-5 text-sm">
-    <summary class="cursor-pointer text-muted transition-colors hover:text-text">Histórico</summary>
-    <ul class="mt-2 flex flex-col gap-1.5">
-      {% for evento in eventos %}
-      <li><span class="font-medium">{{ evento.get_acao_display }}</span> <span class="text-muted">· {{ evento.criado_em|date:"d/m H:i" }}{% if evento.usuario %} · {{ evento.usuario.nome }}{% endif %}{% if evento.detalhes %} · {{ evento.detalhes }}{% endif %}</span></li>
-      {% endfor %}
-    </ul>
-  </details>
   {% endif %}
 </div>

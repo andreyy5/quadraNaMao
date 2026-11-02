@@ -142,6 +142,11 @@ class ReservaCreateView(ReservaFormMixin, FormView):
                 else schedule.slot_minutes(start)
             )
             initial["duracao"] = duration
+            if not params.get("hora"):
+                free = services.free_starts(espaco, day, duration)
+                if free:
+                    start = free[0]
+                    initial["hora"] = start.time()
             quote = schedule.quote(start, start + timedelta(minutes=duration))
             if quote is not None:
                 initial["valor_total"] = quote
@@ -155,6 +160,21 @@ class ReservaCreateView(ReservaFormMixin, FormView):
                     cliente_telefone=format_phone(cliente.telefone),
                 )
         return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Quem clicou em um horário livre já escolheu onde e quando: falta só dizer quem vai jogar.
+        # Um erro no cliente não muda isso; um erro de horário precisa mostrar os campos de novo.
+        request = self.request
+        if request.method == "GET":
+            context["slot_chosen"] = "hora" in request.GET
+        else:
+            form = context["form"]
+            when_errors = form.non_field_errors() or any(
+                name in form.errors for name in ("espaco", "data", "hora", "duracao")
+            )
+            context["slot_chosen"] = request.POST.get("compacto") == "1" and not when_errors
+        return context
 
     def persist(self, data, cliente):
         return services.create_reservation(
@@ -230,6 +250,35 @@ class ReservaQuoteView(TenantRequiredMixin, TemplateView):
         if data.get("espaco") and data.get("inicio"):
             quote = services.quote_price(data["espaco"], data["inicio"], data["fim"])
         context["field"] = ReservaForm(initial={"valor_total": quote})["valor_total"]
+        return context
+
+
+class ReservaSlotsView(TenantRequiredMixin, TemplateView):
+    """Horários livres do dia e situação do horário escolhido, enquanto o formulário é preenchido."""
+
+    template_name = "agenda/_slots.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET
+        form = ReservaForm(params)
+        form.is_valid()
+        data = form.cleaned_data
+        if not (data.get("espaco") and data.get("data") and data.get("duracao")):
+            return context
+        ignore = (
+            Reserva.objects.filter(pk=params["reserva"]).first()
+            if params.get("reserva", "").isdigit()
+            else None
+        )
+        starts = services.free_starts(data["espaco"], data["data"], data["duracao"], ignore=ignore)
+        context["ready"] = True
+        context["hora"] = f"{data['hora']:%H:%M}" if data.get("hora") else ""
+        context["slots"] = [f"{start:%H:%M}" for start in starts]
+        if data.get("inicio"):
+            context["problem"] = services.slot_problem(
+                data["espaco"], data["inicio"], data["fim"], ignore=ignore
+            )
         return context
 
 

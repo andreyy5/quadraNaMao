@@ -181,3 +181,67 @@ def test_day_summary_timeline_marks_a_closed_day(tenant):
     assert line["espaco"] == espaco
     assert line["is_closed"] is True
     assert line["segments"] == []
+
+
+def starts_at(espaco, minutes=60, day=DAY, ignore=None):
+    return [f"{start:%H:%M}" for start in services.free_starts(espaco, day, minutes, ignore=ignore)]
+
+
+def test_free_starts_skips_reservations_and_blocks(espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+    services.create_block(espaco, at(14), at(16), Bloqueio.Motivo.CHUVA)
+
+    starts = starts_at(espaco)
+
+    assert starts[:3] == ["08:00", "09:00", "11:00"]
+    assert "10:00" not in starts
+    assert "14:00" not in starts
+    assert "15:00" not in starts
+    assert starts[-1] == "21:00"
+
+
+def test_free_starts_requires_the_whole_duration_to_fit(espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+
+    starts = starts_at(espaco, minutes=120)
+
+    assert "09:00" not in starts  # terminaria dentro da reserva das 10h
+    assert "08:00" in starts
+    assert starts[-1] == "20:00"  # o espaço fecha às 22h
+
+
+def test_free_starts_ignores_the_reservation_being_edited(espaco, cliente):
+    reserva = services.create_reservation(espaco, cliente, at(10), at(11))
+    assert "10:00" not in starts_at(espaco)
+    assert "10:00" in starts_at(espaco, ignore=reserva)
+
+
+def test_free_starts_leaves_out_the_past(espaco):
+    assert starts_at(espaco, day=DAY.replace(year=2020)) == []
+
+
+def test_free_starts_on_a_closed_day(tenant):
+    espaco = Espaco.all_tenants.create(estabelecimento=tenant, nome="Sem horário", tipo=Espaco.Tipo.AREIA)
+    assert starts_at(espaco) == []
+
+
+def test_free_starts_includes_the_overnight_part_of_the_previous_day(tenant):
+    espaco = make_espaco(tenant, "Noturno", abre=time(18), fecha=time(1))
+
+    starts = starts_at(espaco)
+
+    # 00:00 pertence ao expediente da noite anterior, mas é neste dia que ele acontece.
+    assert starts[0] == "00:00"
+    assert "18:00" in starts
+    assert "23:00" in starts
+    assert "01:00" not in starts
+
+
+def test_slot_problem_explains_why_a_period_is_not_free(espaco, cliente):
+    assert services.slot_problem(espaco, at(10), at(11)) is None
+    reserva = services.create_reservation(espaco, cliente, at(10), at(11))
+    assert "já está reservado" in services.slot_problem(espaco, at(10), at(11))
+    assert services.slot_problem(espaco, at(10), at(11), ignore=reserva) is None
+    assert "fora do funcionamento" in services.slot_problem(espaco, at(23), at(23, 30))
+    services.create_block(espaco, at(14), at(15), Bloqueio.Motivo.CHUVA)
+    assert "bloqueado" in services.slot_problem(espaco, at(14), at(15))

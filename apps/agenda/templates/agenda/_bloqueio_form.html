@@ -1,26 +1,67 @@
-{% include "components/modal_header.html" with title="Bloquear horário" %}
-<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="flex flex-col gap-4 p-5"
-      x-data="{ diaTodo: {{ form.dia_todo.value|yesno:'true,false' }} }">
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body"
+      x-data="bloqueioForm({ diaTodo: {{ form.dia_todo.value|yesno:'true,false' }} })" @change="refresh" @input="refresh">
   {% csrf_token %}
-  {% include "components/form_errors.html" %}
-  <fieldset>
-    <legend class="label">{{ form.espacos.label }}</legend>
-    <div class="flex flex-wrap gap-2">
-      {% for option in form.espacos %}<label class="chip">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+  {% include "components/modal_header.html" with title="Bloquear horário" %}
+
+  <div class="sheet-body">
+    <div class="ticket ticket-muted" aria-live="polite">
+      <div class="min-w-0">
+        <p class="ticket-time text-text [text-shadow:none]" x-text="resumo.horario"></p>
+        <p class="mt-0.5 truncate text-sm text-muted"><span class="first-letter:uppercase" x-text="resumo.dia"></span> · <span class="font-medium text-text" x-text="resumo.espacos"></span></p>
+      </div>
+      <span class="text-muted">{% include "components/icon.html" with name="lock" %}</span>
     </div>
-    {% for error in form.espacos.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
-  </fieldset>
-  {% include "components/field.html" with field=form.data %}
-  {% include "components/checkbox.html" with field=form.dia_todo %}
-  <div class="grid grid-cols-2 gap-4" x-show="!diaTodo" x-cloak>
-    {% include "components/field.html" with field=form.hora_inicio %}
-    {% include "components/field.html" with field=form.hora_fim %}
+
+    {% include "components/form_errors.html" %}
+
+    <fieldset aria-labelledby="bloqueio-espacos">
+      <div class="mb-1.5 flex items-center justify-between gap-2">
+        <span class="label mb-0" id="bloqueio-espacos">{{ form.espacos.label }}</span>
+        <button type="button" class="link-action" @click="toggleAll" x-text="allSelected ? 'Limpar' : 'Marcar todos'"></button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        {% for option in form.espacos %}
+        <label class="choice-card" data-theme="{{ option.data.value.instance.tema }}">
+          {{ option.tag }}
+          {% include "components/illustration.html" with tema=option.data.value.instance.tema class="h-8 w-auto shrink-0" %}
+          <span class="min-w-0 truncate text-sm font-medium">{{ option.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% for error in form.espacos.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+
+    {% include "components/day_picker.html" with field=form.data %}
+
+    <div>
+      {% include "components/checkbox.html" with field=form.dia_todo %}
+      <div class="mt-1 grid grid-cols-2 gap-3" x-show="!diaTodo" x-cloak>
+        {% include "components/field.html" with field=form.hora_inicio hide_optional=True %}
+        {% include "components/field.html" with field=form.hora_fim hide_optional=True %}
+      </div>
+    </div>
+
+    <fieldset>
+      <legend class="label">{{ form.motivo.label }}</legend>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {% for option in form.motivo %}
+        <label class="choice-card choice-card-col">
+          {{ option.tag }}
+          {% include "components/icon.html" with name=option.data.value|lower %}
+          <span class="text-sm font-medium">{{ option.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% for error in form.motivo.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+
+    {% include "components/field.html" with field=form.descricao %}
+
+    <a class="link-action self-center" href="{% url 'agenda:bloqueio_list' %}">Ver bloqueios programados</a>
   </div>
-  {% include "components/field.html" with field=form.motivo %}
-  {% include "components/field.html" with field=form.descricao %}
-  <div class="flex gap-2 pt-1">
+
+  <div class="sheet-foot">
     <button class="btn-primary flex-1" type="submit">Bloquear</button>
     <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
   </div>
-  <a class="text-center text-sm text-muted underline-offset-2 hover:text-text hover:underline" href="{% url 'agenda:bloqueio_list' %}">Ver bloqueios programados</a>
 </form>

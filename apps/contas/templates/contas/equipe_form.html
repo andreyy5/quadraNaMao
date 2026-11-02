@@ -1,21 +1,39 @@
 {% extends "base.html" %}
+{% load ui %}
 
 {% block title %}Equipe · {{ PRODUCT_NAME }}{% endblock %}
 {% block main_width %}max-w-2xl{% endblock %}
 
 {% block content %}
 {% include "estabelecimentos/_tabs.html" with active="equipe" %}
-<form method="post" class="card flex flex-col gap-4 p-5">
+<form method="post" class="form-card" x-data="{ nome: $el.dataset.nome }" data-nome="{{ form.nome.value|default_if_none:'' }}" @input="if ($event.target.name === 'nome') nome = $event.target.value">
   {% csrf_token %}
-  <h2>{% if membro %}{{ membro.nome }}{% else %}Nova pessoa na equipe{% endif %}</h2>
-  {% include "components/form_errors.html" %}
-  {% include "components/field.html" with field=form.nome %}
-  {% if form.email %}{% include "components/field.html" with field=form.email %}{% endif %}
-  {% include "components/field.html" with field=form.papel %}
-  {% if form.password %}{% include "components/field.html" with field=form.password %}{% endif %}
-  {% if form.is_active %}{% include "components/checkbox.html" with field=form.is_active %}{% endif %}
-  <div class="flex gap-2">
-    <button class="btn-primary" type="submit">Salvar</button>
+  <div class="form-card-head">
+    <span class="avatar h-12 w-12 text-sm" aria-hidden="true"><span x-text="$initials(nome) || '?'">{{ form.nome.value|default_if_none:''|initials }}</span></span>
+    <h2 class="truncate text-lg" x-text="nome || 'Nova pessoa na equipe'">{% if membro %}{{ membro.nome }}{% else %}Nova pessoa na equipe{% endif %}</h2>
+  </div>
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.nome icon="users" %}
+    {% if form.email %}{% include "components/field.html" with field=form.email icon="mail" %}{% endif %}
+    <fieldset>
+      <legend class="label">{{ form.papel.label|capfirst }}</legend>
+      <div class="grid gap-2 sm:grid-cols-3">
+        {% for option in form.papel %}{% if option.data.value %}
+        <label class="choice-card choice-card-col items-start text-left">
+          {{ option.tag }}
+          <span class="text-sm font-semibold">{{ option.choice_label }}</span>
+          <span class="text-xs font-normal leading-snug text-muted">{% if option.data.value == "DONO" %}Configura espaços, preços e equipe.{% else %}Usa a agenda, as reservas e os clientes.{% endif %}</span>
+        </label>
+        {% endif %}{% endfor %}
+      </div>
+      {% for error in form.papel.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+    {% if form.password %}{% include "components/password.html" with field=form.password %}{% endif %}
+    {% if form.is_active %}{% include "components/checkbox.html" with field=form.is_active %}{% endif %}
+  </div>
+  <div class="form-card-foot">
+    <button class="btn-primary" type="submit">{% if membro %}Salvar alterações{% else %}Adicionar à equipe{% endif %}</button>
     <a class="btn-ghost" href="{% url 'contas:equipe' %}">Voltar</a>
   </div>
 </form>

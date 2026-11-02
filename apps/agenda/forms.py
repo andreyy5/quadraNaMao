@@ -26,7 +26,9 @@ DURATION_CHOICES = [
 
 
 class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
-    espaco = forms.ModelChoiceField(label="Espaço", queryset=Espaco.objects.none(), empty_label=None)
+    espaco = forms.ModelChoiceField(
+        label="Espaço", queryset=Espaco.objects.none(), empty_label=None, widget=forms.RadioSelect
+    )
     data = forms.DateField(label="Dia", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
     hora = forms.TimeField(label="Início", widget=forms.TimeInput(attrs=TIME_WIDGET, format="%H:%M"))
     duracao = forms.IntegerField(
@@ -34,13 +36,13 @@ class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
         min_value=15,
         max_value=720,
         initial=60,
-        widget=forms.Select(choices=DURATION_CHOICES),
+        widget=forms.RadioSelect(choices=DURATION_CHOICES),
     )
     valor_total = money_field(label="Valor", required=False)
     observacoes = forms.CharField(
         label="Observações",
         required=False,
-        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Opcional"}),
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Recados para a equipe"}),
     )
     cliente = forms.ModelChoiceField(
         queryset=Cliente.objects.none(), required=False, widget=forms.HiddenInput
@@ -56,7 +58,12 @@ class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
         max_length=32,
         required=False,
         widget=forms.TextInput(
-            attrs={"inputmode": "tel", "autocomplete": "off", "placeholder": "(11) 98888-7777"}
+            attrs={
+                "inputmode": "tel",
+                "autocomplete": "off",
+                "placeholder": "(11) 98888-7777",
+                "data-mask": "phone",
+            }
         ),
     )
 
@@ -118,8 +125,13 @@ class BloqueioForm(StyledFormMixin, TenantFormMixin, forms.Form):
     hora_fim = forms.TimeField(
         label="Até", required=False, widget=forms.TimeInput(attrs=TIME_WIDGET, format="%H:%M")
     )
-    motivo = forms.ChoiceField(label="Motivo", choices=Bloqueio.Motivo.choices)
-    descricao = forms.CharField(label="Observação", max_length=200, required=False)
+    motivo = forms.ChoiceField(label="Motivo", choices=Bloqueio.Motivo.choices, widget=forms.RadioSelect)
+    descricao = forms.CharField(
+        label="Observação",
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Ex.: troca da rede"}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

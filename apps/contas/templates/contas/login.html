@@ -21,17 +21,7 @@
       {% include "components/form_errors.html" %}
       {% for message in messages %}<div class="form-alert" role="alert">{{ message }}</div>{% endfor %}
       {% include "components/field.html" with field=form.username %}
-      <div x-data="{ show: false }">
-        <label class="label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-        <div class="relative" x-effect="$el.querySelector('input').type = show ? 'text' : 'password'">
-          {{ form.password }}
-          <button type="button" class="btn-icon absolute right-0 top-0" @click="show = !show" :aria-label="show ? 'Esconder senha' : 'Mostrar senha'" aria-label="Mostrar senha">
-            <span x-show="!show">{% include "components/icon.html" with name="eye" %}</span>
-            <span x-show="show" x-cloak>{% include "components/icon.html" with name="eye-off" %}</span>
-          </button>
-        </div>
-        {% for error in form.password.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
-      </div>
+      {% include "components/password.html" with field=form.password %}
       <input type="hidden" name="next" value="{{ next }}">
       <button class="btn-primary mt-1 w-full" type="submit">Entrar</button>
     </form>

@@ -23,3 +23,4 @@ class EstabelecimentoForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Estabelecimento
         fields = ["nome", "documento", "telefone", "endereco", "fuso_horario"]
+        widgets = {"telefone": forms.TextInput(attrs={"inputmode": "tel", "data-mask": "phone"})}

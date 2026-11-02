@@ -36,6 +36,7 @@ class MembroEquipeCreateForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Usuario
         fields = ["nome", "email", "papel"]
+        widgets = {"papel": forms.RadioSelect}
 
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
@@ -57,6 +58,7 @@ class MembroEquipeUpdateForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Usuario
         fields = ["nome", "papel", "is_active"]
+        widgets = {"papel": forms.RadioSelect}
         labels = {"is_active": "Acesso ativo"}
 
     def __init__(self, *args, current_user=None, **kwargs):

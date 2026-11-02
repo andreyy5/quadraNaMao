@@ -1,11 +1,14 @@
-{% include "components/modal_header.html" with title="Cancelar reserva" %}
-<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="p-5">
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" data-theme="{{ reserva.espaco.tema }}">
   {% csrf_token %}
-  {% if error %}<div class="form-alert mb-3" role="alert">{{ error }}</div>{% endif %}
-  <p>Cancelar a reserva de <strong>{{ reserva.cliente.nome }}</strong> em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}?</p>
-  <p class="mt-1 text-sm text-muted">O horário volta a ficar livre na agenda.</p>
-  <div class="mt-5 flex gap-2">
+  <div class="flex flex-col items-center px-6 pb-2 pt-7 text-center">
+    <span class="danger-mark">{% include "components/icon.html" with name="alert" %}</span>
+    <h2 class="mt-4 text-lg">Cancelar esta reserva?</h2>
+    <p class="mt-1 text-sm text-muted"><strong class="font-medium text-text">{{ reserva.cliente.nome }}</strong> em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}.</p>
+    <p class="mt-1 text-sm text-muted">O horário volta a ficar livre na agenda.</p>
+    {% if error %}<div class="form-alert mt-4 w-full" role="alert">{{ error }}</div>{% endif %}
+  </div>
+  <div class="flex gap-2 p-5">
+    <button class="btn-ghost flex-1" type="button" data-close-modal>Manter reserva</button>
     <button class="btn-danger flex-1" type="submit">Sim, cancelar</button>
-    <button class="btn-ghost" type="button" data-close-modal>Voltar</button>
   </div>
 </form>

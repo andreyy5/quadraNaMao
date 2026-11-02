@@ -1,19 +1,31 @@
 {% extends "base.html" %}
+{% load ui %}
 
 {% block title %}{% if cliente %}{{ cliente.nome }}{% else %}Novo cliente{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
-{% block main_width %}max-w-2xl{% endblock %}
+{% block main_width %}max-w-xl{% endblock %}
 
 {% block content %}
 <a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% if cliente %}{% url 'clientes:detail' cliente.pk %}{% else %}{% url 'clientes:list' %}{% endif %}">{% include "components/icon.html" with name="left" %} Voltar</a>
-<h1 class="mb-5">{% if cliente %}Editar cliente{% else %}Novo cliente{% endif %}</h1>
-<form method="post" class="card flex flex-col gap-4 p-5">
+
+<form method="post" class="form-card" x-data="{ nome: $el.dataset.nome }" data-nome="{{ form.nome.value|default_if_none:'' }}" @input="if ($event.target.name === 'nome') nome = $event.target.value">
   {% csrf_token %}
-  {% include "components/form_errors.html" %}
-  {% include "components/field.html" with field=form.nome %}
-  {% include "components/field.html" with field=form.telefone %}
-  {% include "components/field.html" with field=form.email %}
-  {% include "components/field.html" with field=form.observacoes %}
-  {% include "components/checkbox.html" with field=form.aceite_whatsapp %}
-  <div><button class="btn-primary" type="submit">Salvar</button></div>
+  <div class="form-card-head">
+    <span class="avatar h-14 w-14 text-base" aria-hidden="true"><span x-text="$initials(nome) || '?'">{{ form.nome.value|default_if_none:''|initials }}</span></span>
+    <div class="min-w-0">
+      <h1 class="truncate" x-text="nome || 'Novo cliente'">{% if cliente %}{{ cliente.nome }}{% else %}Novo cliente{% endif %}</h1>
+      <p class="text-sm text-muted">{% if cliente %}Editando o cadastro{% else %}Também é cadastrado ao fazer uma reserva{% endif %}</p>
+    </div>
+  </div>
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.nome icon="users" %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "components/field.html" with field=form.telefone icon="message" %}
+      {% include "components/field.html" with field=form.email icon="mail" %}
+    </div>
+    {% include "components/field.html" with field=form.observacoes %}
+    {% include "components/checkbox.html" with field=form.aceite_whatsapp %}
+  </div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">{% if cliente %}Salvar alterações{% else %}Cadastrar cliente{% endif %}</button></div>
 </form>
 {% endblock %}

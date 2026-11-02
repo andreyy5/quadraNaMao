@@ -1,48 +1,97 @@
-{% include "components/modal_header.html" with title=reserva|yesno:"Editar reserva,Nova reserva" %}
 {% if not form.espaco.field.queryset.exists %}
+{% include "components/modal_header.html" with title="Nova reserva" %}
 <div class="p-5 text-center">
   <p class="text-muted">Para reservar, primeiro cadastre um espaço ativo.</p>
   {% if request.user.is_owner %}<a class="btn-primary mt-4" href="{% url 'espacos:create' %}">Cadastrar espaço</a>{% endif %}
 </div>
 {% else %}
-<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="flex flex-col gap-4 p-5"
-      x-data="reservaForm($el.dataset)" data-cliente="{{ form.cliente.value|default_if_none:'' }}" data-nome="{{ form.cliente_nome.value|default_if_none:'' }}" data-telefone="{{ form.cliente_telefone.value|default_if_none:'' }}"
-      @input="refreshSummary" @change="refreshSummary">
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body"
+      x-data="reservaForm($el.dataset)" :data-theme="tema" data-cliente="{{ form.cliente.value|default_if_none:'' }}" data-nome="{{ form.cliente_nome.value|default_if_none:'' }}" data-telefone="{{ form.cliente_telefone.value|default_if_none:'' }}" data-editing="{{ slot_chosen|yesno:'false,true' }}"
+      @input="refreshSummary" @change="refreshSummary" @htmx:after-settle="refreshSummary">
   {% csrf_token %}
   {{ form.cliente }}
-  <div class="-mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl bg-primary/10 px-3.5 py-2.5 text-sm" aria-live="polite">
-    <span class="text-primary">{% include "components/icon.html" with name="clock" %}</span>
-    <span class="neon-text font-semibold tabular-nums" x-text="resumo.horario"></span>
-    <span class="text-muted" x-text="resumo.dia"></span>
-    <span class="min-w-0 truncate font-medium" x-text="resumo.espaco"></span>
-  </div>
-  {% include "components/form_errors.html" %}
+  <input type="hidden" name="compacto" :value="editing ? '' : '1'">
+  {% include "components/modal_header.html" with title=reserva|yesno:"Editar reserva,Nova reserva" %}
 
-  <div @click.outside="clearResults">
-    <div class="grid gap-4 sm:grid-cols-2">
-      {% include "components/field.html" with field=form.cliente_nome %}
-      {% include "components/field.html" with field=form.cliente_telefone %}
+  <div class="sheet-body">
+    <div class="ticket" aria-live="polite">
+      <div class="min-w-0">
+        <p class="ticket-time" x-text="resumo.horario || '--:--'"></p>
+        <p class="mt-0.5 truncate text-sm text-muted"><span class="first-letter:uppercase" x-text="resumo.dia"></span> · <span class="font-medium text-text" x-text="resumo.espaco"></span></p>
+      </div>
+      <div class="shrink-0 text-right">
+        <p class="font-semibold tabular-nums" x-text="resumo.valor"></p>
+        <button type="button" class="link-action justify-end text-primary" x-show="!editing" @click="editing = true">Alterar</button>
+      </div>
     </div>
-    <div id="cliente-results" x-ref="results"></div>
-    <p class="help flex items-center gap-1.5 text-success" x-show="clienteId" x-cloak><span class="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true"></span> Cliente já cadastrado.</p>
-  </div>
 
-  <div class="grid grid-cols-2 gap-4" hx-get="{% url 'agenda:reserva_quote' %}" hx-trigger="change" hx-include="this" hx-target="#valor-field" hx-swap="innerHTML">
-    <div class="col-span-2">{% include "components/field.html" with field=form.espaco %}</div>
-    {% include "components/field.html" with field=form.data %}
-    {% include "components/field.html" with field=form.hora %}
-    {% include "components/field.html" with field=form.duracao %}
-    <div>
-      <label class="label" for="{{ form.valor_total.id_for_label }}">{{ form.valor_total.label }}</label>
-      <div id="valor-field" hx-disinherit="*">{{ form.valor_total }}</div>
-      {% for error in form.valor_total.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    {% include "components/form_errors.html" %}
+
+    <section @click.outside="clearResults" aria-label="Cliente">
+      <div class="client-card" x-show="clienteId" x-cloak>
+        <span class="avatar" aria-hidden="true" x-text="$initials(nome)"></span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-medium" x-text="nome"></p>
+          <p class="truncate text-sm tabular-nums text-muted" x-text="telefone"></p>
+        </div>
+        <button type="button" class="link-action" @click="clearClient">Trocar</button>
+      </div>
+      <div x-show="!clienteId">
+        <div class="grid gap-3 sm:grid-cols-2">
+          {% include "components/field.html" with field=form.cliente_nome icon="users" hide_optional=True %}
+          {% include "components/field.html" with field=form.cliente_telefone icon="message" hide_optional=True %}
+        </div>
+        <div id="cliente-results" x-ref="results"></div>
+      </div>
+    </section>
+
+    <div id="reserva-when" class="flex flex-col gap-5" x-show="editing" hx-get="{% url 'agenda:reserva_quote' %}" hx-trigger="change" hx-include="this" hx-target="#valor-field" hx-swap="innerHTML">
+      <fieldset>
+        <legend class="label">{{ form.espaco.label }}</legend>
+        <div class="grid grid-cols-2 gap-2">
+          {% for option in form.espaco %}
+          <label class="choice-card" data-theme="{{ option.data.value.instance.tema }}">
+            {{ option.tag }}
+            {% include "components/illustration.html" with tema=option.data.value.instance.tema class="h-8 w-auto shrink-0" %}
+            <span class="min-w-0 truncate text-sm font-medium">{{ option.choice_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% for error in form.espaco.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </fieldset>
+
+      {% include "components/day_picker.html" with field=form.data %}
+
+      <fieldset>
+        <legend class="label">{{ form.duracao.label }}</legend>
+        <div class="grid grid-cols-4 gap-1.5">
+          {% for option in form.duracao %}<label class="chip justify-center px-1">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+        </div>
+        {% for error in form.duracao.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </fieldset>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between gap-3">
+          <span class="label mb-0">Horários livres</span>
+          <label class="flex items-center gap-2 text-xs text-muted" for="{{ form.hora.id_for_label }}">Outro horário <span class="w-28">{{ form.hora }}</span></label>
+        </div>
+        <div id="slot-picker" hx-get="{% url 'agenda:reserva_slots' %}" hx-trigger="load, change from:#reserva-when" hx-include="#reserva-when" hx-target="this" hx-swap="innerHTML" {% if reserva %}hx-vals='{"reserva": {{ reserva.pk }}}'{% endif %}></div>
+        {% for error in form.hora.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
+      <div>
+        <label class="label" for="{{ form.valor_total.id_for_label }}">{{ form.valor_total.label }}</label>
+        <div class="input-group"><span class="input-affix">R$</span><div id="valor-field" hx-disinherit="*">{{ form.valor_total }}</div></div>
+        {% for error in form.valor_total.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      {% include "components/field.html" with field=form.observacoes %}
     </div>
   </div>
 
-  {% include "components/field.html" with field=form.observacoes %}
-
-  <div class="flex gap-2 pt-1">
-    <button class="btn-primary flex-1" type="submit">{% if reserva %}Salvar{% else %}Confirmar reserva{% endif %}</button>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">{% if reserva %}Salvar alterações{% else %}Confirmar reserva{% endif %}</button>
     <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
   </div>
 </form>

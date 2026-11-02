@@ -252,6 +252,88 @@
 
   /* Formulários */
   .label { @apply mb-1.5 block text-sm font-medium; }
+  .label-optional { @apply ml-1 text-xs font-normal text-muted; }
+
+  .input-group { @apply relative; }
+  .input-group .input { padding-left: 2.6rem; }
+  .input-affix {
+    @apply pointer-events-none absolute left-3.5 top-0 z-[1] flex h-11 items-center text-sm font-medium text-muted;
+    transition: color 0.15s ease;
+  }
+  .input-affix svg { @apply h-[18px] w-[18px]; }
+  .input-group:focus-within .input-affix { @apply text-primary; }
+
+  .link-action {
+    @apply inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted underline-offset-2 hover:text-primary hover:underline;
+    transition: color 0.15s ease;
+  }
+
+  /* Painéis e formulários em cartão: cabeçalho e ações ficam sempre à vista enquanto o corpo rola. */
+  .sheet-head { @apply flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-5 py-2.5 backdrop-blur-sm; }
+  .sheet-body { @apply flex flex-col gap-5 p-5; }
+  .sheet-foot { @apply flex items-center gap-2 border-t border-border bg-surface/95 px-5 py-3 backdrop-blur-sm; }
+
+  .form-card { @apply card overflow-hidden; }
+  .form-card-head { @apply flex items-center gap-3.5 border-b border-border px-5 py-4; }
+  .form-card-body { @apply flex flex-col gap-5 p-5; }
+  .form-card-foot { @apply flex items-center gap-2 border-t border-border bg-surface-2/30 px-5 py-3; }
+
+  /* O horário escolhido em destaque, no topo do painel. */
+  .ticket {
+    @apply flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3;
+    box-shadow: 0 0 24px rgb(var(--color-primary) / calc(var(--glow) * 0.18));
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .ticket-muted { @apply border-border bg-surface-2/50; box-shadow: none; }
+  .ticket-time {
+    @apply whitespace-nowrap font-display text-[26px] font-semibold leading-tight text-primary;
+    text-shadow: 0 0 18px rgb(var(--color-primary) / var(--glow));
+    transition: color 0.25s ease;
+  }
+
+  .client-card { @apply flex items-center gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5; }
+
+  .danger-mark {
+    @apply inline-flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger;
+    box-shadow: 0 0 22px rgb(var(--color-danger) / calc(var(--glow) * 0.45));
+  }
+
+  /* Opção em cartão: troca as listas suspensas quando há poucas alternativas. */
+  .choice-card {
+    @apply relative flex min-h-[3.25rem] cursor-pointer select-none items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-2 text-muted hover:text-text;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  }
+  .choice-card input { @apply sr-only; }
+  .choice-card > svg { transition: color 0.15s ease; }
+  .choice-card .neon-art { filter: none; opacity: 0.65; transition: opacity 0.2s ease, filter 0.25s ease; }
+  .choice-card:hover { border-color: rgb(var(--color-primary) / 0.5); }
+  .choice-card:active { transform: scale(0.98); }
+  .choice-card:has(input:checked) {
+    @apply border-primary bg-primary/10 text-text;
+    box-shadow: 0 0 16px rgb(var(--color-primary) / calc(var(--glow) * 0.5));
+  }
+  .choice-card:has(input:checked) > svg { @apply text-primary; }
+  .choice-card:has(input:checked) .neon-art {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgb(var(--color-primary) / var(--glow)));
+  }
+  .choice-card:has(input:focus-visible) { outline: 2px solid rgb(var(--color-primary)); outline-offset: 2px; }
+  .choice-card-col { @apply flex-col justify-center gap-1.5 py-3 text-center; }
+
+  .day-scroller { @apply -mx-2 -my-1 flex gap-1 overflow-x-auto px-2 py-2; scrollbar-width: none; }
+  .day-scroller .day-pill.is-selected { box-shadow: 0 0 7px rgb(var(--color-primary) / calc(var(--glow) * 0.6)); }
+  .day-scroller::-webkit-scrollbar { display: none; }
+
+  .time-chip {
+    @apply flex min-h-10 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/40 text-sm tabular-nums text-muted hover:text-text;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  }
+  .time-chip:hover { border-color: rgb(var(--color-primary) / 0.5); }
+  .time-chip:active { transform: scale(0.96); }
+  .time-chip.is-selected {
+    @apply border-primary bg-primary font-semibold text-on-primary;
+    box-shadow: 0 0 14px rgb(var(--color-primary) / var(--glow));
+  }
   .input {
     @apply block min-h-11 w-full rounded-xl border border-border bg-background/60 px-3.5 text-base text-text placeholder:text-muted/70 focus:border-primary focus:outline-none md:text-sm;
     transition: border-color 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease;
@@ -320,6 +402,7 @@
   }
 
   .help { @apply mt-1.5 text-xs text-muted; }
+  .help ul { @apply list-disc space-y-0.5 pl-4; }
   .field-error { @apply mt-1.5 text-sm text-danger; }
   .form-alert { @apply rounded-xl border border-danger/40 bg-danger/10 px-3.5 py-3 text-sm text-text; animation: shake 0.3s ease; }
 
@@ -600,6 +683,8 @@ dialog#modal {
   box-shadow: 0 -8px 40px rgb(0 0 0 / 0.45), 0 0 40px rgb(var(--color-primary) / calc(var(--glow) * 0.18));
 }
 dialog#modal:focus { outline: none; }
+dialog#modal .sheet-head { position: sticky; top: 1px; z-index: 2; }
+dialog#modal .sheet-foot { position: sticky; bottom: 0; z-index: 2; padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
 dialog#modal::before {
   content: "";
   position: sticky;
@@ -624,7 +709,7 @@ dialog#modal:has([data-palette]) { @apply m-0 mb-auto rounded-b-2xl rounded-t-no
 
 @media (min-width: 768px) {
   dialog#modal {
-    @apply m-auto max-w-lg rounded-2xl;
+    @apply m-auto max-w-[34rem] rounded-2xl;
   }
   dialog#modal:has([data-palette]) {
     @apply mx-auto mb-auto mt-[12vh] max-w-xl rounded-2xl;

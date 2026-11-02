@@ -10,17 +10,31 @@
 <a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="left" %} Espaços</a>
 <h1 class="mb-5">Novo espaço</h1>
 {% endif %}
-<form method="post" class="card flex flex-col gap-4 p-5" {% if espaco %}data-theme="{{ espaco.tema }}"{% endif %}>
+<form method="post" class="form-card">
   {% csrf_token %}
-  {% include "components/form_errors.html" %}
-  {% include "components/field.html" with field=form.nome %}
-  {% include "components/field.html" with field=form.tipo %}
-  {% include "components/field.html" with field=form.modalidades %}
-  <div class="grid gap-4 sm:grid-cols-2">
-    {% include "components/field.html" with field=form.capacidade %}
-    {% include "components/field.html" with field=form.ordem %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    <fieldset>
+      <legend class="label">{{ form.tipo.label|capfirst }} do espaço</legend>
+      <div class="grid gap-2 sm:grid-cols-3">
+        {% for option in form.tipo %}
+        <label class="choice-card choice-card-col py-4" data-theme="{{ option.data.value|lower }}">
+          {{ option.tag }}
+          {% include "components/illustration.html" with tema=option.data.value|lower class="h-14 w-auto" %}
+          <span class="text-sm font-medium">{{ option.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% for error in form.tipo.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+    {% include "components/field.html" with field=form.nome %}
+    {% include "components/field.html" with field=form.modalidades %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "components/field.html" with field=form.capacidade %}
+      {% include "components/field.html" with field=form.ordem %}
+    </div>
+    {% include "components/checkbox.html" with field=form.ativo %}
   </div>
-  {% include "components/checkbox.html" with field=form.ativo %}
-  <div><button class="btn-primary" type="submit">Salvar</button></div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">{% if espaco %}Salvar alterações{% else %}Criar espaço{% endif %}</button></div>
 </form>
 {% endblock %}
