@@ -2,9 +2,22 @@
 {% load ui %}
 
 {% block body %}
+{% url 'agenda:reserva_create' as default_new_reserva %}
+<div id="progress" aria-hidden="true"></div>
+
 <div class="md:flex" hx-boost="true">
-  <aside class="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-border p-3 md:flex" aria-label="Menu principal">
-    <a href="{% url 'relatorios:dashboard' %}" class="mb-6 mt-1 block px-3">{% include "components/wordmark.html" %}</a>
+  <aside class="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border p-3 md:flex" aria-label="Menu principal">
+    <a href="{% url 'relatorios:dashboard' %}" class="mb-5 mt-1 block px-3">{% include "components/wordmark.html" %}</a>
+
+    <button type="button" class="search-trigger mb-2" data-palette-open hx-get="{% url 'clientes:palette' %}" hx-target="#modal-body" title="Buscar cliente ou ação (Ctrl+K)">
+      {% include "components/icon.html" with name="search" %}
+      <span class="flex-1 text-left">Buscar…</span>
+      <kbd class="kbd">Ctrl K</kbd>
+    </button>
+    <button type="button" class="btn-primary mb-5 w-full" data-new-reserva hx-get="{{ new_reserva_url|default:default_new_reserva }}" hx-target="#modal-body" title="Nova reserva (N)">
+      {% include "components/icon.html" with name="plus" %} Nova reserva
+    </button>
+
     <nav class="flex flex-1 flex-col gap-1">
       <a class="nav-side {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
       <a class="nav-side {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
@@ -16,23 +29,28 @@
       <a class="nav-side {% nav_active '/conta' %}" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
       {% endif %}
     </nav>
-    <div class="border-t border-border pt-3">
-      <p class="truncate px-3 text-sm font-medium">{{ request.tenant.nome }}</p>
-      <p class="truncate px-3 text-xs text-muted">{{ request.user.nome }}</p>
-      <div class="mt-2 flex items-center">
-        {% include "components/theme_toggle.html" %}
-        <form method="post" action="{% url 'contas:logout' %}" hx-boost="false">
-          {% csrf_token %}
-          <button class="btn-icon" type="submit" aria-label="Sair" title="Sair">{% include "components/icon.html" with name="logout" %}</button>
-        </form>
+
+    <div class="flex items-center gap-2.5 border-t border-border pt-3">
+      <span class="avatar" aria-hidden="true">{{ request.user.nome|initials }}</span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium leading-tight">{{ request.tenant.nome }}</p>
+        <p class="truncate text-xs text-muted">{{ request.user.nome }}</p>
       </div>
+    </div>
+    <div class="mt-1 flex items-center justify-end">
+      {% include "components/theme_toggle.html" %}
+      <form method="post" action="{% url 'contas:logout' %}" hx-boost="false">
+        {% csrf_token %}
+        <button class="btn-icon" type="submit" aria-label="Sair" title="Sair">{% include "components/icon.html" with name="logout" %}</button>
+      </form>
     </div>
   </aside>
 
   <div class="min-w-0 flex-1">
-    <header class="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+    <header class="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md md:hidden">
       <a href="{% url 'relatorios:dashboard' %}">{% include "components/wordmark.html" %}</a>
-      <div class="flex items-center">
+      <div class="-mr-2 flex items-center">
+        <button type="button" class="btn-icon" data-palette-open hx-get="{% url 'clientes:palette' %}" hx-target="#modal-body" aria-label="Buscar">{% include "components/icon.html" with name="search" %}</button>
         {% include "components/theme_toggle.html" %}
         <form method="post" action="{% url 'contas:logout' %}" hx-boost="false">
           {% csrf_token %}
@@ -41,14 +59,14 @@
       </div>
     </header>
 
-    <main class="mx-auto w-full {% block main_width %}max-w-4xl{% endblock %} px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">
+    <main class="mx-auto w-full {% block main_width %}max-w-4xl{% endblock %} px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">
       {% block content %}{% endblock %}
     </main>
-
-    <footer class="hidden px-8 pb-6 text-xs text-muted md:block">{{ PRODUCT_NAME }}</footer>
   </div>
 
-  <nav class="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Menu principal">
+  <button type="button" class="fab md:hidden" data-new-reserva hx-get="{{ new_reserva_url|default:default_new_reserva }}" hx-target="#modal-body" aria-label="Nova reserva">{% include "components/icon.html" with name="plus" %}</button>
+
+  <nav class="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden" aria-label="Menu principal">
     <a class="nav-bottom {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
     <a class="nav-bottom {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
     <a class="nav-bottom {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
@@ -61,11 +79,14 @@
   </nav>
 </div>
 
-<dialog id="modal" aria-label="Painel"><div id="modal-body"></div></dialog>
+<dialog id="modal" aria-label="Painel" tabindex="-1"><div id="modal-body"></div></dialog>
 
-<div id="toasts" class="fixed inset-x-4 bottom-20 z-50 flex flex-col items-center gap-2 md:bottom-6 md:left-auto md:right-6 md:items-end" aria-live="polite">
+<div id="toasts" class="pointer-events-none fixed inset-x-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 md:bottom-6 md:left-auto md:right-6 md:items-end" aria-live="polite">
   {% for message in messages %}
-  <div data-toast class="card px-4 py-3 text-sm shadow-card {% if message.tags == 'error' %}border-danger/50{% endif %}" role="status">{{ message }}</div>
+  <div data-toast class="toast pointer-events-auto {% if message.tags == 'error' %}toast-error{% endif %}" role="status">
+    {% if message.tags == 'error' %}{% include "components/icon.html" with name="alert" %}{% else %}{% include "components/icon.html" with name="check" %}{% endif %}
+    <span>{{ message }}</span>
+  </div>
   {% endfor %}
 </div>
 {% endblock %}

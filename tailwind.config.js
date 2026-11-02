@@ -3,6 +3,8 @@ const token = (name) => `rgb(var(--color-${name}) / <alpha-value>)`;
 
 module.exports = {
   content: ["./templates/**/*.html", "./apps/**/templates/**/*.html", "./apps/**/*.py", "./static/js/*.js"],
+  // Montadas no template a partir do status da reserva: o Tailwind não as encontra sozinho.
+  safelist: ["badge-confirmada", "badge-pendente", "badge-concluida", "badge-cancelada", "badge-nao_compareceu"],
   theme: {
     extend: {
       colors: {
@@ -21,14 +23,11 @@ module.exports = {
       },
       fontFamily: {
         sans: ["Inter Variable", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["Space Grotesk Variable", "Inter Variable", "system-ui", "sans-serif"],
       },
       borderRadius: {
         xl: "0.875rem",
         "2xl": "1.125rem",
-      },
-      boxShadow: {
-        sheet: "0 -8px 40px rgb(0 0 0 / 0.35)",
-        card: "0 1px 2px rgb(0 0 0 / 0.12)",
       },
     },
   },

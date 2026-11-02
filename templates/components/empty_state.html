@@ -1,6 +1,6 @@
-<div class="card flex flex-col items-center px-6 py-10 text-center" {% if tema %}data-theme="{{ tema }}"{% endif %}>
+<div class="card flex flex-col items-center px-6 py-12 text-center" {% if tema %}data-theme="{{ tema }}"{% endif %}>
   {% include "components/illustration.html" with tema=tema|default:"areia" %}
-  <h2 class="mt-4">{{ title }}</h2>
+  <h2 class="mt-5 text-lg">{{ title }}</h2>
   {% if text %}<p class="mt-1 max-w-sm text-sm text-muted">{{ text }}</p>{% endif %}
-  {% if url %}<a class="btn-primary mt-5" href="{{ url }}">{{ action }}</a>{% endif %}
+  {% if url %}<a class="btn-primary mt-6" href="{{ url }}">{{ action }}</a>{% endif %}
 </div>
