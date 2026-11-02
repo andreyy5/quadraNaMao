@@ -30,6 +30,16 @@ Abra http://127.0.0.1:8000. O `seed_demo` mostra no terminal os acessos do dono 
 
 No Linux ou macOS, troque `.\.venv\Scripts\python.exe` por `.venv/bin/python`. Durante o desenvolvimento do CSS, deixe `npm run dev` rodando.
 
+### Atalhos de teclado
+
+| Tecla | Ação |
+|---|---|
+| `Ctrl` + `K` ou `/` | Busca rápida de clientes e ações |
+| `N` | Nova reserva, no dia aberto na agenda |
+| `B` | Bloquear horário, na agenda |
+| `←` e `→` | Dia ou semana anterior e seguinte, na agenda |
+| `T` | Voltar para hoje, na agenda |
+
 ### Cadastrar um estabelecimento real
 
 ```powershell

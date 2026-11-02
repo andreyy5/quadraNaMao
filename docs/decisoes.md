@@ -17,7 +17,17 @@ Consequências a lembrar:
 
 **Tailwind 3.4.** Mantido em vez do 4 porque o planner define os tokens em `tailwind.config.js`, que é o formato nativo dessa versão.
 
-**Sem CDN.** HTMX, Alpine e a fonte Inter são servidos pelo próprio sistema, para funcionar em redes ruins e não enviar dados de navegação a terceiros.
+**Sem CDN.** HTMX, Alpine e as fontes são servidos pelo próprio sistema, para funcionar em redes ruins e não enviar dados de navegação a terceiros.
+
+**Visual neon com parcimônia.** A base é quase preta e o brilho fica reservado ao que importa: ação principal, item ativo, foco, hora atual e reservas. A variável `--glow` controla a força do brilho e quase o desliga no modo claro, onde neon sobre branco não se lê. As sombras usam `var(--color-primary)` em cada regra, para seguir o `data-theme` do espaço mais próximo. Toda animação respeita `prefers-reduced-motion`.
+
+**Fontes.** Space Grotesk só em tamanhos grandes (títulos de página, números de destaque), sem `tabular-nums`, porque o "1" tabular dela parece riscado. O restante usa Inter.
+
+**Classes do Tailwind nos templates.** Duas armadilhas: classes montadas a partir de dados do banco (`badge-{{ status }}`) precisam entrar no `safelist`, e classes com valor arbitrário não podem ficar coladas em `{% if %}` (`{% if x %}md:max-h-[...]{% endif %}` não é gerada; com espaços, é).
+
+**Link do WhatsApp em vez de integração.** Os botões abrem uma conversa em `wa.me` e quem envia é o atendente. Não depende de aceite nem de API, que continuam para a Fase 5.
+
+**Sem arrastar para remarcar, por enquanto.** Mover uma reserva para outra faixa de preço exige decidir se o valor muda ou se mantém, e essa regra não está no planner. A remarcação continua pelo formulário, que recalcula o valor à vista de quem edita.
 
 **Admin restrito.** O admin do Django cobre apenas `Usuario` e `Estabelecimento`, porque o superusuário não tem tenant e os dados de negócio são operados no painel.
 
