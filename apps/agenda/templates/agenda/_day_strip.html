@@ -1,0 +1,9 @@
+<nav id="day-strip" class="mb-4 flex gap-1" aria-label="Dias da semana">
+  {% for item in day_strip %}
+  <a class="day-pill {% if item.is_today %}is-today{% endif %} {% if item.is_selected %}is-selected{% endif %}" href="{% url 'agenda:day' %}?data={{ item.day|date:'Y-m-d' }}" {% if item.is_selected %}aria-current="date"{% endif %} aria-label="{{ item.day|date:'l, d/m' }}, {{ item.count }} reserva{{ item.count|pluralize }}" title="{{ item.count }} reserva{{ item.count|pluralize }}">
+    <span class="day-pill-name">{{ item.day|date:"D" }}</span>
+    <span class="day-pill-number">{{ item.day|date:"d" }}</span>
+    <span class="day-pill-dots" aria-hidden="true">{% for _ in item.dots %}<span></span>{% endfor %}</span>
+  </a>
+  {% endfor %}
+</nav>

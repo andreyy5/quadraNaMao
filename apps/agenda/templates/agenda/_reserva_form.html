@@ -1,8 +1,21 @@
 {% include "components/modal_header.html" with title=reserva|yesno:"Editar reserva,Nova reserva" %}
+{% if not form.espaco.field.queryset.exists %}
+<div class="p-5 text-center">
+  <p class="text-muted">Para reservar, primeiro cadastre um espaço ativo.</p>
+  {% if request.user.is_owner %}<a class="btn-primary mt-4" href="{% url 'espacos:create' %}">Cadastrar espaço</a>{% endif %}
+</div>
+{% else %}
 <form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" class="flex flex-col gap-4 p-5"
-      x-data="reservaForm($el.dataset)" data-cliente="{{ form.cliente.value|default_if_none:'' }}" data-nome="{{ form.cliente_nome.value|default_if_none:'' }}" data-telefone="{{ form.cliente_telefone.value|default_if_none:'' }}">
+      x-data="reservaForm($el.dataset)" data-cliente="{{ form.cliente.value|default_if_none:'' }}" data-nome="{{ form.cliente_nome.value|default_if_none:'' }}" data-telefone="{{ form.cliente_telefone.value|default_if_none:'' }}"
+      @input="refreshSummary" @change="refreshSummary">
   {% csrf_token %}
   {{ form.cliente }}
+  <div class="-mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl bg-primary/10 px-3.5 py-2.5 text-sm" aria-live="polite">
+    <span class="text-primary">{% include "components/icon.html" with name="clock" %}</span>
+    <span class="neon-text font-semibold tabular-nums" x-text="resumo.horario"></span>
+    <span class="text-muted" x-text="resumo.dia"></span>
+    <span class="min-w-0 truncate font-medium" x-text="resumo.espaco"></span>
+  </div>
   {% include "components/form_errors.html" %}
 
   <div @click.outside="clearResults">
@@ -11,7 +24,7 @@
       {% include "components/field.html" with field=form.cliente_telefone %}
     </div>
     <div id="cliente-results" x-ref="results"></div>
-    <p class="help" x-show="clienteId" x-cloak>Cliente já cadastrado.</p>
+    <p class="help flex items-center gap-1.5 text-success" x-show="clienteId" x-cloak><span class="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true"></span> Cliente já cadastrado.</p>
   </div>
 
   <div class="grid grid-cols-2 gap-4" hx-get="{% url 'agenda:reserva_quote' %}" hx-trigger="change" hx-include="this" hx-target="#valor-field" hx-swap="innerHTML">
@@ -33,3 +46,4 @@
     <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
   </div>
 </form>
+{% endif %}

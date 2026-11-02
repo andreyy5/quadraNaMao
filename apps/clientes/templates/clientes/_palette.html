@@ -1,0 +1,36 @@
+{% load clientes_ui ui %}
+<div data-palette>
+  <div class="relative border-b border-border">
+    <span class="pointer-events-none absolute left-4 top-[1.125rem] text-muted">{% include "components/icon.html" with name="search" %}</span>
+    <label class="sr-only" for="palette-input">Buscar cliente ou ação</label>
+    <input id="palette-input" class="palette-input" type="text" name="q" value="{{ q }}" placeholder="Buscar cliente ou ação…" autocomplete="off" data-autofocus="always"
+           hx-get="{% url 'clientes:palette' %}" hx-trigger="input changed delay:150ms" hx-target="#palette-results" hx-select="#palette-results" hx-swap="outerHTML">
+    <kbd class="kbd absolute right-4 top-[1.125rem] hidden md:inline-flex">Esc</kbd>
+    <button type="button" class="btn-icon absolute right-1 top-1.5 md:hidden" data-close-modal aria-label="Fechar">{% include "components/icon.html" with name="close" %}</button>
+  </div>
+  <div id="palette-results" class="max-h-[60dvh] overflow-y-auto p-2">
+    {% if clientes %}
+    <p class="eyebrow px-3 pb-1 pt-2">Clientes</p>
+    {% for cliente in clientes %}
+    <a class="palette-item" data-palette-item href="{% url 'clientes:detail' cliente.pk %}">
+      <span class="avatar h-7 w-7 text-[10px]" aria-hidden="true">{{ cliente.nome|initials }}</span>
+      <span class="min-w-0 flex-1 truncate font-medium">{{ cliente.nome }}</span>
+      <span class="tabular-nums text-muted">{{ cliente.telefone|telefone }}</span>
+    </a>
+    {% endfor %}
+    {% endif %}
+    {% if actions %}
+    <p class="eyebrow px-3 pb-1 pt-2">Ações</p>
+    {% for action in actions %}
+    {% if action.modal %}
+    <button type="button" class="palette-item" data-palette-item hx-get="{{ action.modal }}" hx-target="#modal-body">{% include "components/icon.html" with name=action.icon %} {{ action.label }}</button>
+    {% else %}
+    <a class="palette-item" data-palette-item href="{{ action.url }}">{% include "components/icon.html" with name=action.icon %} {{ action.label }}</a>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% if not clientes and not actions %}
+    <p class="px-3 py-8 text-center text-sm text-muted">Nada encontrado para “{{ q }}”.</p>
+    {% endif %}
+  </div>
+</div>

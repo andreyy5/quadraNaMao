@@ -1,3 +1,5 @@
+import unicodedata
+
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.shortcuts import redirect
@@ -38,6 +40,82 @@ class ClienteSearchView(TenantRequiredMixin, TemplateView):
             params.get("cliente_telefone") or params.get("cliente_nome") or params.get("q") or ""
         ).strip()
         context["clientes"] = search_clients(query, limit=6) if len(query) >= 2 else []
+        return context
+
+
+def _plain(text):
+    """Minúsculas e sem acento, para comparar o que foi digitado com o nome de uma ação."""
+    decomposed = unicodedata.normalize("NFKD", text.lower())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+class PaletteView(TenantRequiredMixin, TemplateView):
+    """Busca rápida (Ctrl+K): encontra clientes e leva direto a qualquer ação do sistema."""
+
+    template_name = "clientes/_palette.html"
+
+    def get_actions(self):
+        actions = [
+            {
+                "label": "Nova reserva",
+                "icon": "plus",
+                "modal": reverse("agenda:reserva_create"),
+                "terms": "agendar marcar",
+            },
+            {
+                "label": "Bloquear horário",
+                "icon": "lock",
+                "modal": reverse("agenda:bloqueio_create"),
+                "terms": "chuva manutencao evento fechar",
+            },
+            {"label": "Agenda do dia", "icon": "calendar", "url": reverse("agenda:day"), "terms": "hoje"},
+            {"label": "Agenda da semana", "icon": "calendar", "url": reverse("agenda:week"), "terms": ""},
+            {
+                "label": "Novo cliente",
+                "icon": "users",
+                "url": reverse("clientes:create"),
+                "terms": "cadastrar",
+            },
+            {"label": "Clientes", "icon": "users", "url": reverse("clientes:list"), "terms": "lista"},
+            {
+                "label": "Bloqueios programados",
+                "icon": "lock",
+                "url": reverse("agenda:bloqueio_list"),
+                "terms": "",
+            },
+        ]
+        if self.request.user.is_owner:
+            actions += [
+                {
+                    "label": "Espaços",
+                    "icon": "court",
+                    "url": reverse("espacos:list"),
+                    "terms": "quadra campo areia",
+                },
+                {
+                    "label": "Ajustes do estabelecimento",
+                    "icon": "settings",
+                    "url": reverse("estabelecimentos:ajustes"),
+                    "terms": "configuracoes",
+                },
+                {
+                    "label": "Equipe",
+                    "icon": "users",
+                    "url": reverse("contas:equipe"),
+                    "terms": "atendente gerente",
+                },
+            ]
+        return actions
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query = self.request.GET.get("q", "").strip()
+        plain = _plain(query)
+        context.update(
+            q=query,
+            clientes=search_clients(query, limit=6) if len(query) >= 2 else [],
+            actions=[a for a in self.get_actions() if plain in _plain(f"{a['label']} {a['terms']}")],
+        )
         return context
 
 

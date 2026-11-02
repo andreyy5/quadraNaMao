@@ -3,21 +3,37 @@
 {% block title %}Entrar · {{ PRODUCT_NAME }}{% endblock %}
 
 {% block body %}
-<main class="flex min-h-dvh flex-col items-center justify-center px-5 py-10" data-theme="areia">
+<main class="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 py-10" data-theme="areia">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" class="login-court neon-art pointer-events-none absolute left-1/2 top-1/2 -z-10 w-[min(150vw,1100px)] max-w-none -translate-x-1/2 -translate-y-1/2 text-primary opacity-[.16]" fill="none" stroke="currentColor" stroke-width=".5" aria-hidden="true">
+    <rect x="6" y="6" width="308" height="188" rx="4" pathLength="1"/>
+    <path d="M160 6v188" pathLength="1"/>
+    <circle cx="160" cy="100" r="30" pathLength="1"/>
+    <path d="M6 44c56 0 72 26 72 56s-16 56-72 56" pathLength="1"/>
+    <path d="M314 44c-56 0-72 26-72 56s16 56 72 56" pathLength="1"/>
+  </svg>
   <div class="w-full max-w-sm">
-    <div class="mb-8 text-center">
-      {% include "components/illustration.html" with tema="areia" class="mx-auto mb-5 h-20 w-auto" %}
-      <h1 class="text-[28px]">Quadra<span class="text-primary">Na</span>Mão<span class="text-primary">!</span></h1>
-      <p class="mt-1 text-sm text-muted">Sua agenda de quadras, sem caderno.</p>
+    <div class="mb-7 flex flex-col items-center text-center">
+      <span class="flicker">{% include "components/wordmark.html" with class="text-[30px]" mark_class="h-8 w-8" %}</span>
+      <p class="mt-2 text-sm text-muted">Sua agenda de quadras, sem caderno.</p>
     </div>
-    <form method="post" class="flex flex-col gap-4">
+    <form method="post" class="card flex flex-col gap-4 bg-surface/90 p-6 backdrop-blur-sm" style="box-shadow:0 0 44px rgb(var(--color-primary) / calc(var(--glow) * .16))">
       {% csrf_token %}
       {% include "components/form_errors.html" %}
       {% for message in messages %}<div class="form-alert" role="alert">{{ message }}</div>{% endfor %}
       {% include "components/field.html" with field=form.username %}
-      {% include "components/field.html" with field=form.password %}
+      <div x-data="{ show: false }">
+        <label class="label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        <div class="relative" x-effect="$el.querySelector('input').type = show ? 'text' : 'password'">
+          {{ form.password }}
+          <button type="button" class="btn-icon absolute right-0 top-0" @click="show = !show" :aria-label="show ? 'Esconder senha' : 'Mostrar senha'" aria-label="Mostrar senha">
+            <span x-show="!show">{% include "components/icon.html" with name="eye" %}</span>
+            <span x-show="show" x-cloak>{% include "components/icon.html" with name="eye-off" %}</span>
+          </button>
+        </div>
+        {% for error in form.password.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
       <input type="hidden" name="next" value="{{ next }}">
-      <button class="btn-primary mt-2 w-full" type="submit">Entrar</button>
+      <button class="btn-primary mt-1 w-full" type="submit">Entrar</button>
     </form>
   </div>
 </main>

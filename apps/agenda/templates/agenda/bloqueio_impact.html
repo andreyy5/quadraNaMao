@@ -24,7 +24,7 @@
 
 {% if reservas %}
 <h2 class="mb-1">Reservas afetadas ({{ reservas|length }})</h2>
-<p class="mb-3 text-sm text-muted">Remarque uma a uma ou cancele as selecionadas. Avise os clientes: o envio automático por WhatsApp chega em uma próxima fase.</p>
+<p class="mb-3 text-sm text-muted">Remarque uma a uma ou cancele as selecionadas. Avise cada cliente pelo botão de WhatsApp: o envio automático chega em uma próxima fase.</p>
 <form method="post" action="{% url 'agenda:reserva_bulk_cancel' %}">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -36,6 +36,7 @@
         <p class="truncate font-medium">{{ reserva.cliente.nome }}</p>
         <p class="truncate text-sm tabular-nums text-muted">{{ reserva.espaco.nome }} · {{ reserva.inicio|date:"d/m" }} {{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }} · {{ reserva.cliente.telefone|telefone }}</p>
       </div>
+      {% with wa=reserva.cliente.telefone|whatsapp_url %}{% if wa %}<a class="btn-icon text-success hover:text-success" target="_blank" rel="noopener" href="{{ wa }}" aria-label="Chamar {{ reserva.cliente.nome }} no WhatsApp" title="Chamar no WhatsApp">{% include "components/icon.html" with name="message" %}</a>{% endif %}{% endwith %}
       <button class="btn-secondary" type="button" hx-get="{% url 'agenda:reserva_update' reserva.pk %}" hx-target="#modal-body">Remarcar</button>
     </div>
     {% endfor %}

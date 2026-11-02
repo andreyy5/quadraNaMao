@@ -5,7 +5,7 @@ traduz o erro dela em uma mensagem amigável, e usa `all_tenants` com filtro exp
 para funcionar fora de uma requisição (tarefas agendadas e, depois, o agente de IA).
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -381,11 +381,45 @@ def create_block(espaco, inicio, fim, motivo, descricao="", usuario=None):
     return bloqueio, affected_reservations([bloqueio])
 
 
+def _day_timeline(column, now):
+    """Resumo de uma coluna para a linha do dia.
+
+    As posições vão como texto para a localização não trocar o ponto por vírgula no CSS.
+    """
+    if not column.cells:
+        return {"espaco": column.espaco, "is_closed": True, "occupancy": 0, "segments": []}
+    start, end = column.cells[0].inicio, column.cells[-1].fim
+    total = end - start
+
+    def percent(delta):
+        return f"{delta * 100 / total:.2f}"
+
+    busy = sum(cell.minutes for cell in column.cells if cell.kind == "reserved")
+    available = sum(cell.minutes for cell in column.cells if cell.kind in ("reserved", "free"))
+    return {
+        "espaco": column.espaco,
+        "is_closed": False,
+        "occupancy": round(busy * 100 / available) if available else 0,
+        "opens": start,
+        "closes": end,
+        "now": percent(now - start) if start <= now <= end else None,
+        "segments": [
+            {
+                "kind": cell.kind,
+                "left": percent(cell.inicio - start),
+                "width": percent(cell.fim - cell.inicio),
+            }
+            for cell in column.cells
+            if cell.kind != "free"
+        ],
+    }
+
+
 def day_summary(estabelecimento, day):
     """Números do dia para a tela inicial."""
     agenda = build_day_agenda(estabelecimento, day)
     if agenda is None:
-        return {"reservas": [], "occupancy": 0, "expected": Decimal("0"), "free_slots": 0}
+        return {"reservas": [], "occupancy": 0, "expected": Decimal("0"), "free_slots": 0, "timelines": []}
     reservas, free_slots, busy, available = [], 0, 0, 0
     for column in agenda.columns:
         for cell in column.cells:
@@ -396,9 +430,38 @@ def day_summary(estabelecimento, day):
             elif cell.kind == "free":
                 free_slots += 0 if cell.is_past else 1
                 available += cell.minutes
+    now = timezone.now()
     return {
         "reservas": sorted(reservas, key=lambda reserva: reserva.inicio),
         "occupancy": round(busy * 100 / available) if available else 0,
         "expected": sum((reserva.valor_total for reserva in reservas), Decimal("0")),
         "free_slots": free_slots,
+        "timelines": [_day_timeline(column, now) for column in agenda.columns],
     }
+
+
+def week_strip(estabelecimento, day):
+    """Os sete dias da semana de `day`, com a quantidade de reservas de cada um."""
+    tz = estabelecimento.timezone
+    monday = day - timedelta(days=day.weekday())
+    start = datetime.combine(monday, datetime.min.time(), tzinfo=tz)
+    inicios = (
+        Reserva.all_tenants.filter(
+            estabelecimento=estabelecimento, inicio__gte=start, inicio__lt=start + timedelta(days=7)
+        )
+        .exclude(status=Reserva.Status.CANCELADA)
+        .values_list("inicio", flat=True)
+    )
+    counts = Counter(inicio.astimezone(tz).date() for inicio in inicios)
+    today = timezone.now().astimezone(tz).date()
+    days = [monday + timedelta(days=offset) for offset in range(7)]
+    return [
+        {
+            "day": item,
+            "count": counts[item],
+            "dots": range(min(counts[item], 3)),
+            "is_today": item == today,
+            "is_selected": item == day,
+        }
+        for item in days
+    ]

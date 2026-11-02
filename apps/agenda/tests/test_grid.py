@@ -6,7 +6,7 @@ from django.test.utils import CaptureQueriesContext
 
 from apps.agenda import services
 from apps.agenda.models import Bloqueio
-from apps.espacos.models import DiaSemana, TabelaPreco
+from apps.espacos.models import DiaSemana, Espaco, TabelaPreco
 from apps.espacos.services import load_schedule, save_price_rules, save_weekly_hours
 from conftest import DAY, at, make_espaco
 
@@ -133,3 +133,51 @@ def test_day_summary(espaco, cliente):
     assert len(summary["reservas"]) == 1
     assert summary["expected"] == Decimal("200.00")
     assert summary["occupancy"] == 14
+
+
+def test_week_strip_counts_reservations_per_day(tenant, espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+    services.create_reservation(espaco, cliente, at(12), at(13))
+    cancelled = services.create_reservation(espaco, cliente, at(14), at(15))
+    services.cancel_reservation(cancelled)
+
+    strip = services.week_strip(tenant, DAY)
+
+    assert [item["day"].weekday() for item in strip] == list(range(7))
+    selected = next(item for item in strip if item["is_selected"])
+    assert selected["day"] == DAY
+    assert selected["count"] == 2
+    assert len(selected["dots"]) == 2
+    assert sum(item["count"] for item in strip) == 2
+
+
+def test_week_strip_uses_the_local_day_near_midnight(tenant, cliente):
+    espaco = make_espaco(tenant, "24 horas", abre=time(0), fecha=time(0))
+    services.create_reservation(espaco, cliente, at(23), at(23, 30))
+
+    strip = services.week_strip(tenant, DAY)
+
+    # 23h em São Paulo já é o dia seguinte em UTC.
+    assert next(item for item in strip if item["day"] == DAY)["count"] == 1
+
+
+def test_day_summary_timeline_positions_use_a_dot_for_css(tenant, espaco, cliente):
+    services.create_reservation(espaco, cliente, at(10), at(11))
+
+    line = services.day_summary(tenant, DAY)["timelines"][0]
+
+    assert line["espaco"] == espaco
+    assert line["occupancy"] == 7
+    assert line["now"] is None
+    # Aberto das 8h às 22h: a reserva começa em 2/14 do dia e ocupa 1/14.
+    assert line["segments"] == [{"kind": "reserved", "left": "14.29", "width": "7.14"}]
+
+
+def test_day_summary_timeline_marks_a_closed_day(tenant):
+    espaco = Espaco.all_tenants.create(estabelecimento=tenant, nome="Sem horário", tipo=Espaco.Tipo.AREIA)
+
+    line = services.day_summary(tenant, DAY)["timelines"][0]
+
+    assert line["espaco"] == espaco
+    assert line["is_closed"] is True
+    assert line["segments"] == []

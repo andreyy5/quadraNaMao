@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load clientes_ui %}
+{% load clientes_ui ui %}
 
 {% block title %}Clientes · {{ PRODUCT_NAME }}{% endblock %}
 {% block main_width %}max-w-2xl{% endblock %}
@@ -22,8 +22,10 @@
   <div class="card divide overflow-hidden">
     {% for cliente in clientes %}
     <a class="row-link" href="{% url 'clientes:detail' cliente.pk %}">
+      <span class="avatar" aria-hidden="true">{{ cliente.nome|initials }}</span>
       <span class="min-w-0 flex-1 truncate font-medium">{{ cliente.nome }}</span>
-      <span class="text-sm tabular-nums text-muted">{{ cliente.telefone|telefone }}</span>
+      <span class="hidden text-sm tabular-nums text-muted sm:inline">{{ cliente.telefone|telefone }}</span>
+      <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
     </a>
     {% endfor %}
   </div>

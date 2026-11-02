@@ -1,10 +1,11 @@
 {% load ui %}
 {% if cell.kind == "free" %}
-<button type="button" class="slot slot-free {% if cell.is_past %}is-past{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"
+<button type="button" class="slot slot-free {% if show_day_labels %}is-quiet{% endif %} {% if cell.is_past %}is-past{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"
         hx-get="{% url 'agenda:reserva_create' %}?espaco={{ column.espaco.pk }}&data={{ cell.inicio|date:'Y-m-d' }}&hora={{ cell.inicio|time:'H:i' }}&minutos={{ cell.minutes }}" hx-target="#modal-body"
         aria-label="Reservar {{ column.espaco.nome }} às {{ cell.inicio|time:'H:i' }}">
   <span class="tabular-nums">{{ cell.inicio|time:"H:i" }}</span>
   {% if cell.valor is not None %}<span class="tabular-nums opacity-80">{{ cell.valor|brl }}</span>{% endif %}
+  <span class="slot-plus" aria-hidden="true">{% include "components/icon.html" with name="plus" %}</span>
 </button>
 {% elif cell.kind == "reserved" %}
 <button type="button" class="slot slot-reserved {% if not cell.reserva.is_open %}is-done{% endif %} {% if cell.has_block %}has-block{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col gap-0.5{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"

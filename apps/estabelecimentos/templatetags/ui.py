@@ -14,6 +14,13 @@ def brl(value):
     return f"R$ {number_format(Decimal(value), decimal_pos=2, force_grouping=True)}"
 
 
+@register.filter
+def initials(name):
+    """Iniciais para o avatar: João da Silva vira JS."""
+    parts = (name or "").split()
+    return "".join(part[0] for part in (parts[:1] + parts[1:][-1:])).upper()
+
+
 @register.simple_tag(takes_context=True)
 def nav_active(context, *prefixes):
     """Marca o item do menu cujo caminho corresponde à página atual."""

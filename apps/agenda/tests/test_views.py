@@ -208,3 +208,24 @@ def test_block_form_requires_time_when_not_all_day(owner_client, espaco):
     response = owner_client.post(reverse("agenda:bloqueio_create"), data, headers=HX)
     assert response.status_code == 200
     assert "Informe o horário" in response.content.decode()
+
+
+def test_day_view_shows_week_strip_and_keeps_day_in_new_reservation(owner_client, espaco):
+    response = owner_client.get(reverse("agenda:day"), {"data": DAY.isoformat()})
+    assert len(response.context["day_strip"]) == 7
+    assert 'id="day-strip"' in response.content.decode()
+    assert f"{reverse('agenda:reserva_create')}?data={DAY.isoformat()}" in response.content.decode()
+
+
+def test_reservation_form_explains_when_there_is_no_space(owner_client):
+    content = owner_client.get(reverse("agenda:reserva_create"), headers=HX).content.decode()
+    assert "primeiro cadastre um espaço" in content
+    assert "<form" not in content
+
+
+def test_reservation_detail_links_to_whatsapp(owner_client, espaco, cliente):
+    reserva = services.create_reservation(espaco, cliente, at(10), at(11))
+    content = owner_client.get(
+        reverse("agenda:reserva_detail", args=[reserva.pk]), headers=HX
+    ).content.decode()
+    assert f"https://wa.me/{cliente.telefone.removeprefix('+')}?text=" in content

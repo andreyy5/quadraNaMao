@@ -46,8 +46,11 @@ class AgendaDayView(TenantRequiredMixin, TemplateView):
             next_url=f"{day_url}?data={day + timedelta(days=1):%Y-%m-%d}",
             today_url=day_url,
             heading=date_format(day, "l, j \\d\\e F").lower(),
+            heading_short=date_format(day, "j \\d\\e F").lower(),
             grid=services.build_day_agenda(self.request.tenant, day),
+            day_strip=services.week_strip(self.request.tenant, day),
             agenda_mode="day",
+            new_reserva_url=f"{reverse('agenda:reserva_create')}?data={day:%Y-%m-%d}",
         )
         return context
 
@@ -78,6 +81,7 @@ class AgendaWeekView(TenantRequiredMixin, TemplateView):
             selected=selected,
             grid=services.build_week_agenda(selected, monday) if selected else None,
             agenda_mode="week",
+            new_reserva_url=f"{reverse('agenda:reserva_create')}?data={day:%Y-%m-%d}{suffix}",
         )
         return context
 

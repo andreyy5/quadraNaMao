@@ -5,6 +5,7 @@
 
 {% block content %}
 {% include "agenda/_toolbar.html" %}
+{% include "agenda/_day_strip.html" %}
 
 {% if grid %}
 <div x-data="agendaTabs([{% for column in grid.columns %}{{ column.espaco.pk }}{% if not forloop.last %},{% endif %}{% endfor %}])">

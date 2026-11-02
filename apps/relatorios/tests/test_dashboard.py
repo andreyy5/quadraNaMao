@@ -36,4 +36,12 @@ def test_dashboard_lists_todays_reservation(owner_client, tenant, cliente):
     services.create_reservation(espaco, cliente, start, start + timedelta(hours=1))
     response = owner_client.get(reverse("relatorios:dashboard"))
     assert len(response.context["summary"]["reservas"]) == 1
+    assert response.context["next_game"].cliente == cliente
+    assert response.context["next_games"] == []
     assert cliente.nome in response.content.decode()
+
+
+def test_dashboard_without_games_invites_to_open_agenda(owner_client, espaco):
+    response = owner_client.get(reverse("relatorios:dashboard"))
+    assert response.context["next_game"] is None
+    assert response.status_code == 200

@@ -119,6 +119,12 @@ def test_lists_and_search_do_not_leak(owner_client, espaco, foreign):
     response = owner_client.get(reverse("clientes:search"), {"cliente_nome": "Alheio"}, headers=HX)
     assert "Cliente Alheio" not in response.content.decode()
     assert "dono@b.test" not in owner_client.get(reverse("contas:equipe")).content.decode()
+    response = owner_client.get(reverse("clientes:palette"), {"q": "Alheio"}, headers=HX)
+    assert "Cliente Alheio" not in response.content.decode()
+
+
+def test_week_strip_ignores_other_tenants(tenant, espaco, foreign):
+    assert sum(item["count"] for item in services.week_strip(tenant, DAY)) == 0
 
 
 def test_reservation_form_only_offers_own_records(tenant, espaco, foreign):

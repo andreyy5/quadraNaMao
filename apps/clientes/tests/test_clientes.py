@@ -13,6 +13,7 @@ from apps.clientes.services import (
     normalize_phone,
     search_clients,
 )
+from apps.clientes.templatetags.clientes_ui import whatsapp_url
 from apps.estabelecimentos.tenancy import tenant_context
 from conftest import HX, at, make_cliente
 
@@ -97,3 +98,35 @@ def test_anonymized_client_page_still_opens(owner_client, cliente):
     anonymize_client(cliente)
     assert owner_client.get(reverse("clientes:detail", args=[cliente.pk])).status_code == 200
     assert owner_client.get(reverse("clientes:update", args=[cliente.pk])).status_code == 404
+
+
+def test_palette_finds_clients_and_actions_without_accents(owner_client, cliente):
+    url = reverse("clientes:palette")
+    response = owner_client.get(url, {"q": "joao"}, headers=HX)
+    assert cliente in response.context["clientes"]
+
+    labels = [action["label"] for action in owner_client.get(url, {"q": "espacos"}).context["actions"]]
+    assert labels == ["Espaços"]
+
+
+def test_palette_finds_action_by_related_term(owner_client):
+    response = owner_client.get(reverse("clientes:palette"), {"q": "chuva"})
+    assert [action["label"] for action in response.context["actions"]] == ["Bloquear horário"]
+
+
+def test_palette_hides_owner_actions_from_attendant(client, attendant):
+    client.force_login(attendant)
+    labels = [action["label"] for action in client.get(reverse("clientes:palette")).context["actions"]]
+    assert "Nova reserva" in labels
+    assert "Espaços" not in labels
+    assert "Equipe" not in labels
+
+
+def test_palette_says_when_nothing_matches(owner_client):
+    assert "Nada encontrado" in owner_client.get(reverse("clientes:palette"), {"q": "xyzw"}).content.decode()
+
+
+def test_whatsapp_url_is_empty_for_anonymized_client():
+    assert whatsapp_url("+5511987650001") == "https://wa.me/5511987650001"
+    assert whatsapp_url("anon-12") == ""
+    assert whatsapp_url("") == ""

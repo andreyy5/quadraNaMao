@@ -1,28 +1,28 @@
 {% comment %}Grade compartilhada entre dia e semana. Parâmetro show_day_labels: cabeçalho com o dia em vez do espaço.{% endcomment %}
-<div id="agenda-grid" data-refresh hx-get="{{ request.get_full_path }}" hx-trigger="refresh, every 60s" hx-select="#agenda-grid" hx-target="this" hx-swap="outerHTML" hx-disinherit="*">
-  <div class="overflow-x-auto">
+<div id="agenda-grid" data-refresh hx-get="{{ request.get_full_path }}" hx-trigger="refresh, every 60s" hx-select="#agenda-grid" {% if not show_day_labels %}hx-select-oob="#day-strip"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disinherit="*">
+  <div class="overflow-x-auto overflow-y-hidden {% if show_day_labels %} md:max-h-[calc(100dvh-11.5rem)] {% else %} md:max-h-[calc(100dvh-13.25rem)] {% endif %} md:overflow-y-auto" data-scroll>
     <div class="flex {% if show_day_labels %}min-w-[720px]{% endif %}">
-      <div class="sticky left-0 z-10 w-12 shrink-0 bg-background {% if not show_day_labels and grid.columns|length > 1 %}pt-3 md:pt-12{% else %}pt-12{% endif %}" aria-hidden="true">
+      <div class="sticky left-0 z-20 w-12 shrink-0 bg-background {% if not show_day_labels and grid.columns|length > 1 %}pt-3 md:pt-12{% else %}pt-12{% endif %}" aria-hidden="true">
         <div class="relative" style="height:{{ grid.height }}px">
           {% for hour in grid.hours %}
-          <span class="absolute -top-2 right-2 text-[11px] tabular-nums text-muted" style="top:calc({{ hour.top }}px - 0.5rem)">{{ hour.label }}</span>
+          <span class="absolute right-2 text-[11px] tabular-nums text-muted" style="top:calc({{ hour.top }}px - 0.5rem)">{{ hour.label }}</span>
           {% endfor %}
         </div>
       </div>
       {% for column in grid.columns %}
-      <section class="agenda-col min-w-0 flex-1 border-l border-border" data-theme="{{ column.espaco.tema }}"
+      <section class="agenda-col min-w-0 flex-1 border-l border-border/60 {% if show_day_labels and column.day == today %}is-today{% endif %}" data-theme="{{ column.espaco.tema }}"
                {% if not show_day_labels %}data-active="{% if forloop.first %}yes{% else %}no{% endif %}" :data-active="active === {{ column.espaco.pk }} ? 'yes' : 'no'"{% endif %}
                aria-label="{% if show_day_labels %}{{ column.day|date:'l, d/m' }}{% else %}{{ column.espaco.nome }}{% endif %}">
-        <header class="{% if not show_day_labels and grid.columns|length > 1 %}hidden md:flex{% else %}flex{% endif %} h-12 items-center justify-center gap-1.5 truncate px-2 text-sm font-medium {% if show_day_labels and column.day == today %}text-primary{% endif %}">
+        <header class="agenda-head {% if not show_day_labels and grid.columns|length > 1 %}hidden md:flex{% else %}flex{% endif %} items-center justify-center gap-2 truncate px-2 text-sm font-medium md:sticky md:top-0 {% if show_day_labels and column.day == today %}text-primary{% endif %}">
           {% if show_day_labels %}
-          <a class="rounded-lg px-1.5 py-1 capitalize hover:bg-surface-2" href="{% url 'agenda:day' %}?data={{ column.day|date:'Y-m-d' }}">{{ column.day|date:"D d" }}</a>
+          <a class="rounded-lg px-1.5 py-1 capitalize transition-colors hover:bg-surface-2" href="{% url 'agenda:day' %}?data={{ column.day|date:'Y-m-d' }}">{{ column.day|date:"D d" }}</a>
           {% else %}
-          <span class="h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span> <span class="truncate">{{ column.espaco.nome }}</span>
+          <span class="agenda-col-dot" aria-hidden="true"></span> <span class="truncate">{{ column.espaco.nome }}</span>
           {% endif %}
         </header>
         {% if not show_day_labels and grid.columns|length > 1 %}<div class="h-3 md:hidden" aria-hidden="true"></div>{% endif %}
         <div class="relative" style="height:{{ grid.height }}px">
-          {% for hour in grid.hours %}<div class="absolute inset-x-0 border-t border-border/50" style="top:{{ hour.top }}px" aria-hidden="true"></div>{% endfor %}
+          {% for hour in grid.hours %}<div class="absolute inset-x-0 border-t border-border/30" style="top:{{ hour.top }}px" aria-hidden="true"></div>{% endfor %}
           {% if column.is_closed %}
           <p class="absolute inset-x-0 top-8 text-center text-sm text-muted">Fechado</p>
           {% endif %}

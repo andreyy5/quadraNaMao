@@ -9,10 +9,10 @@
 </div>
 
 {% if espacos %}
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+<div class="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
   {% for espaco in espacos %}
-  <div class="card overflow-hidden {% if not espaco.ativo %}opacity-60{% endif %}" data-theme="{{ espaco.tema }}">
-    <a href="{% url 'espacos:update' espaco.pk %}" class="block bg-primary/5 p-4">
+  <div class="card card-hover overflow-hidden {% if not espaco.ativo %}opacity-60{% endif %}" data-theme="{{ espaco.tema }}">
+    <a href="{% url 'espacos:update' espaco.pk %}" class="block bg-primary/5 p-5">
       {% include "components/illustration.html" with tema=espaco.tema class="mx-auto h-24 w-auto" %}
     </a>
     <div class="p-4">

@@ -1,9 +1,9 @@
 {% load clientes_ui %}
 {% if clientes %}
-<ul class="mt-1 overflow-hidden rounded-xl border border-border bg-surface-2">
+<ul class="mt-1 overflow-hidden rounded-xl border border-primary/40 bg-surface-2">
   {% for cliente in clientes %}
   <li>
-    <button type="button" class="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-sm hover:bg-primary/15"
+    <button type="button" class="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-sm transition-colors hover:bg-primary/15"
             data-id="{{ cliente.pk }}" data-nome="{{ cliente.nome }}" data-telefone="{{ cliente.telefone|telefone }}" @click="pick($el.dataset)">
       <span class="truncate font-medium">{{ cliente.nome }}</span>
       <span class="tabular-nums text-muted">{{ cliente.telefone|telefone }}</span>
