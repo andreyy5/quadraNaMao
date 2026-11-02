@@ -33,7 +33,13 @@ Consequências a lembrar:
 
 **Admin restrito.** O admin do Django cobre apenas `Usuario` e `Estabelecimento`, porque o superusuário não tem tenant e os dados de negócio são operados no painel.
 
-**Apps adiados.** `financeiro`, `pdv`, `estoque`, `whatsapp` e `agente` não foram criados, nem o Django REST Framework instalado, conforme a regra de não adiantar fases. O campo `Reserva.mensalista` entra na Fase 2. `Reserva.valor_pago` e `TabelaPreco.valor_sinal` já existem, mas ainda não têm uso.
+**PDV antes do financeiro.** O PDV e o estoque entraram antes da Fase 3 a pedido do Andrey. Como `Caixa` e `Lancamento` ainda não existem, a venda guarda a forma de pagamento e o valor recebido, mas não entra em um caixa. Quando a Fase 3 chegar, `Venda` ganha o campo `caixa` e a conclusão da venda passa a gerar o lançamento, em `pdv/services.py`.
+
+**Saldo de estoque.** `Produto.estoque_atual` é uma cópia do saldo para consulta rápida e só muda em `estoque/services.py`, sempre com uma `MovimentacaoEstoque`. Os locks seguem uma ordem fixa (estabelecimento, venda, produtos por `pk`), para vendas simultâneas não venderem o mesmo item nem se bloquearem.
+
+**Estoque simplificado.** Quantidades inteiras, sem unidade de medida, lotes ou validade. O planner cita `unidade` em `Produto`; ficou de fora até um piloto precisar. Entrada por compra não gera `ContaPagar`, porque depende da Fase 3.
+
+**Apps adiados.** `financeiro`, `whatsapp` e `agente` não foram criados, nem o Django REST Framework instalado, conforme a regra de não adiantar fases. O campo `Reserva.mensalista` entra na Fase 2. `Reserva.valor_pago` e `TabelaPreco.valor_sinal` já existem, mas ainda não têm uso.
 
 ## Regras de negócio assumidas (validar com o piloto)
 
@@ -49,7 +55,12 @@ Estas regras não estão definidas no planner:
 8. Duração diferente do horário padrão é cobrada **proporcionalmente** aos minutos.
 9. Um **único intervalo de funcionamento** por dia e por espaço. Pausa para almoço pode ser feita com um bloqueio.
 10. Reserva cancelada não pode ser editada nem reativada: cria-se outra.
-11. Perfis: só o **dono** configura espaços, preços, estabelecimento e equipe. Gerente e atendente têm o mesmo acesso até a Fase 3, quando o financeiro os diferencia.
+11. Perfis: só o **dono** configura espaços, preços, estabelecimento e equipe. **Dono e gerente** cuidam do estoque. Todos usam a agenda e o PDV.
+12. A venda sem estoque é **recusada** por padrão. Em Ajustes, cada estabelecimento pode liberar a venda com saldo negativo. Perda também respeita essa opção; a contagem nunca é recusada, porque é o saldo real.
+13. O **preço vem sempre do cadastro**. Se ele mudar com o carrinho aberto, a venda é recusada para o total ser conferido. O item guarda o preço do momento da venda.
+14. **Comanda:** no máximo uma aberta por reserva. O estoque baixa ao lançar o consumo e o pagamento fica para o fechamento. Só cobre o consumo, porque o pagamento da própria reserva entra na Fase 2. Cancelar a reserva não mexe na comanda, que continua aberta até alguém receber ou cancelar.
+15. **Cancelamento:** devolve os itens ao estoque e mantém o registro. Comanda em aberto qualquer pessoa corrige ou cancela; venda já paga, só dono ou gerente. Não há estorno automático, já que o sistema ainda não movimenta dinheiro.
+16. **Sem desconto por venda** por enquanto.
 
 ## O que ainda não foi executado
 

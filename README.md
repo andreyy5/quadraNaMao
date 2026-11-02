@@ -2,7 +2,7 @@
 
 Sistema de agendamento e gestão para quadras e campos esportivos. Substitui o caderno e o controle pelo WhatsApp.
 
-**Estado atual:** Fases 0 e 1 do [planner](PLANNER.md). Login e perfis, multi-tenant, espaços, horários, preços, clientes, agenda visual e bloqueios.
+**Estado atual:** Fases 0 e 1 do [planner](PLANNER.md), mais o PDV e o estoque da Fase 4, sem o caixa da Fase 3. Login e perfis, multi-tenant, espaços, horários, preços, clientes, agenda visual, bloqueios, PDV com comanda na reserva e estoque.
 
 ## Stack
 
@@ -26,7 +26,7 @@ npm run build
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Abra http://127.0.0.1:8000. O `seed_demo` mostra no terminal os acessos do dono e do atendente de demonstração. Para recriar esses dados, use `seed_demo --reset`.
+Abra http://127.0.0.1:8000. O `seed_demo` mostra no terminal os acessos do dono e do atendente de demonstração. Para recriar esses dados, use `seed_demo --reset`. Para só acrescentar produtos e vendas a uma demonstração criada antes do PDV, use `seed_demo --produtos`.
 
 No Linux ou macOS, troque `.\.venv\Scripts\python.exe` por `.venv/bin/python`. Durante o desenvolvimento do CSS, deixe `npm run dev` rodando.
 
@@ -60,7 +60,7 @@ Defina `SECRET_KEY` e `POSTGRES_PASSWORD` no `.env` e rode `docker compose up --
 .\.venv\Scripts\black.exe --check .
 ```
 
-Os testes usam um banco temporário criado no próprio PostgreSQL. As regras críticas têm cobertura específica: conflito de horário e concorrência em `apps/agenda/tests/`, e isolamento entre estabelecimentos em `apps/estabelecimentos/tests/test_isolation.py`.
+Os testes usam um banco temporário criado no próprio PostgreSQL. As regras críticas têm cobertura específica: conflito de horário e concorrência em `apps/agenda/tests/`, venda, comanda e concorrência de estoque em `apps/pdv/tests/`, e isolamento entre estabelecimentos em `apps/estabelecimentos/tests/test_isolation.py` e `apps/pdv/tests/`.
 
 ## Variáveis de ambiente
 
@@ -84,6 +84,8 @@ apps/
   espacos/           espaços, horários de funcionamento, tabela de preços
   clientes/          clientes, busca, anonimização (LGPD)
   agenda/            reservas, bloqueios, auditoria e grade de horários
+  estoque/           produtos, movimentações e estoque mínimo
+  pdv/               vendas, comanda na reserva e cancelamento
   relatorios/        tela "Hoje"
 templates/           layout base e componentes
 assets/css/app.css   fonte do CSS (compilado em static/css/app.css)
