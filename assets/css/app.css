@@ -628,6 +628,74 @@
   }
   .palette-item.is-selected > svg { @apply text-primary; }
 
+  /* Menu "Mais" do celular */
+  .nav-more {
+    @apply absolute bottom-full right-2 z-30 mb-2 flex w-48 flex-col gap-0.5 rounded-2xl border border-border bg-surface p-1.5;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.4), 0 0 22px rgb(var(--color-primary) / calc(var(--glow) * 0.2));
+    animation: rise 0.16s ease;
+  }
+
+  /* PDV */
+  .product-icon {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary;
+  }
+  .product-card {
+    @apply relative flex min-h-[8.5rem] cursor-pointer flex-col items-start gap-1.5 rounded-2xl border border-border bg-surface/80 p-3 text-left;
+    transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+  }
+  .product-card:active:not(:disabled) { transform: scale(0.97); }
+  @media (hover: hover) {
+    .product-card:hover:not(:disabled) {
+      border-color: rgb(var(--color-primary) / 0.55);
+      box-shadow: 0 0 20px rgb(var(--color-primary) / calc(var(--glow) * 0.35));
+    }
+  }
+  .product-card:disabled { @apply cursor-not-allowed opacity-45; }
+  .product-card.in-cart {
+    @apply border-primary;
+    box-shadow: 0 0 16px rgb(var(--color-primary) / calc(var(--glow) * 0.45));
+  }
+  .product-count {
+    @apply absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold tabular-nums text-on-primary;
+    box-shadow: 0 0 10px rgb(var(--color-primary) / var(--glow));
+  }
+
+  .stepper { @apply flex shrink-0 items-center rounded-xl border border-border; }
+  .stepper button {
+    @apply flex h-10 w-10 cursor-pointer items-center justify-center text-lg text-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-30;
+    transition: color 0.15s ease;
+  }
+  .stepper span { @apply min-w-6 text-center text-sm font-semibold; }
+
+  .pay-option {
+    @apply flex min-h-[3.75rem] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-border bg-background/40 px-1 py-2 text-xs font-medium text-muted hover:text-text;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease;
+  }
+  .pay-option:hover { border-color: rgb(var(--color-primary) / 0.5); }
+  .pay-option.is-selected {
+    @apply border-primary bg-primary/10 text-text;
+    box-shadow: 0 0 14px rgb(var(--color-primary) / calc(var(--glow) * 0.5));
+  }
+  .pay-option.is-selected > svg { @apply text-primary; }
+
+  /* No celular o carrinho sobe do rodapé; a partir do tablet fica fixo ao lado dos produtos. */
+  .pdv-cart {
+    @apply fixed inset-x-0 bottom-0 z-40 flex max-h-[88dvh] translate-y-full flex-col overflow-hidden rounded-t-2xl border border-border bg-surface;
+    transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .pdv-cart.is-open { @apply translate-y-0; }
+  @media (min-width: 768px) {
+    .pdv-cart {
+      @apply sticky inset-auto top-8 z-auto max-h-none translate-y-0 self-start rounded-2xl;
+      height: calc(100dvh - 7.5rem);
+    }
+  }
+  .pdv-bar {
+    @apply fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl bg-primary px-4 text-sm text-on-primary;
+    box-shadow: 0 0 22px rgb(var(--color-primary) / var(--glow)), 0 6px 18px rgb(0 0 0 / 0.35);
+    animation: rise 0.2s ease;
+  }
+
   /* Avisos */
   .toast {
     @apply card relative flex max-w-sm cursor-pointer items-center gap-2.5 overflow-hidden bg-surface px-4 py-3 text-sm;

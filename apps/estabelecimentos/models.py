@@ -25,6 +25,11 @@ class Estabelecimento(models.Model):
     fuso_horario = models.CharField(
         "fuso horário", max_length=40, choices=FUSOS_HORARIOS, default="America/Sao_Paulo"
     )
+    permite_estoque_negativo = models.BooleanField(
+        "vender mesmo sem estoque",
+        default=False,
+        help_text="Ligado, o PDV deixa vender o que está zerado no sistema. Bom se o estoque não for contado sempre.",
+    )
     ativo = models.BooleanField("ativo", default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

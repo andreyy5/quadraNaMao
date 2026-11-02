@@ -22,5 +22,5 @@ class StyledFormMixin:
 class EstabelecimentoForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Estabelecimento
-        fields = ["nome", "documento", "telefone", "endereco", "fuso_horario"]
+        fields = ["nome", "documento", "telefone", "endereco", "fuso_horario", "permite_estoque_negativo"]
         widgets = {"telefone": forms.TextInput(attrs={"inputmode": "tel", "data-mask": "phone"})}

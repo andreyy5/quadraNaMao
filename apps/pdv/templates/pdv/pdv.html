@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}PDV · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-none{% endblock %}
+{% block fab %}{% endblock %}
+
+{% block content %}
+{% include "pdv/_tabs.html" %}
+
+{% if not produtos %}
+  {% if request.user.is_manager %}
+  {% url 'estoque:create' as create_url %}
+  {% include "components/empty_state.html" with tema="areia" title="Nada para vender ainda" text="Cadastre o que o seu espaço vende ou aluga: água, refrigerante, bola, raquete." url=create_url action="Cadastrar produto" %}
+  {% else %}
+  {% include "components/empty_state.html" with tema="areia" title="Nada para vender ainda" text="Peça ao dono ou ao gerente para cadastrar os produtos." %}
+  {% endif %}
+{% else %}
+{{ pdv_data|json_script:"pdv-data" }}
+<div class="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-[minmax(0,1fr)_22rem]" x-data="pdv" @toast.window="onToast($event.detail)">
+  <section aria-label="Produtos">
+    <div class="input-group mb-3">
+      <span class="input-affix">{% include "components/icon.html" with name="search" %}</span>
+      <input class="input" type="search" x-model="query" x-ref="search" placeholder="Buscar produto ou passar o código de barras" autocomplete="off" aria-label="Buscar produto" @keydown.enter.prevent="addFromSearch" @keydown.escape="query = ''">
+    </div>
+    <div class="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Categorias">
+      <button type="button" class="chip" :aria-pressed="categoria === ''" aria-pressed="true" @click="categoria = ''">Tudo</button>
+      {% for value, label in categorias %}
+      <button type="button" class="chip" :aria-pressed="categoria === '{{ value }}'" aria-pressed="false" @click="categoria = '{{ value }}'">{% include "components/icon.html" with name=value|lower %} {{ label }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      {% for produto in produtos %}
+      <button type="button" class="product-card" x-show="isVisible({{ produto.pk }})" :class="{ 'in-cart': qty({{ produto.pk }}) > 0 }" :disabled="!canAdd({{ produto.pk }})" @click="add({{ produto.pk }})">
+        <span class="product-count" x-show="qty({{ produto.pk }}) > 0" x-cloak x-text="qty({{ produto.pk }})"></span>
+        <span class="product-icon">{% include "components/icon.html" with name=produto.icone %}</span>
+        <span class="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-tight">{{ produto.nome }}</span>
+        <span class="mt-auto flex w-full items-baseline justify-between gap-2 pt-1.5">
+          <span class="whitespace-nowrap font-semibold tabular-nums text-primary">{{ produto.preco_venda|brl }}</span>
+          {% if produto.controla_estoque %}<span class="whitespace-nowrap text-xs tabular-nums" :class="stockClass({{ produto.pk }})" x-text="stockLabel({{ produto.pk }})"></span>{% endif %}
+        </span>
+      </button>
+      {% endfor %}
+    </div>
+    <p class="py-10 text-center text-muted" x-show="!hasVisible" x-cloak>Nenhum produto encontrado.</p>
+  </section>
+
+  <div class="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" x-show="cartOpen" x-cloak @click="cartOpen = false"></div>
+
+  <aside class="pdv-cart" :class="{ 'is-open': cartOpen }" aria-label="Carrinho">
+    <form x-ref="form" class="flex min-h-0 flex-1 flex-col" method="post" action="{% url 'pdv:finalizar' %}" hx-post="{% url 'pdv:finalizar' %}" hx-swap="none">
+      {% csrf_token %}
+      <template x-for="line in lines" :key="line.id">
+        <span>
+          <input type="hidden" name="produto" :value="line.id">
+          <input type="hidden" name="quantidade" :value="line.qty">
+        </span>
+      </template>
+      <input type="hidden" name="total" :value="totalValue">
+      <input type="hidden" name="forma" :value="forma">
+      <input type="hidden" name="reserva" :value="reservaId">
+      <input type="hidden" name="recebido" :value="recebidoValue">
+
+      <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+        <button type="button" class="btn-icon -ml-2 min-h-9 w-9" x-show="step === 'pay'" x-cloak @click="step = 'cart'" aria-label="Voltar ao carrinho">{% include "components/icon.html" with name="left" %}</button>
+        <h2 class="flex-1" x-text="step === 'cart' ? 'Carrinho' : 'Pagamento'">Carrinho</h2>
+        <button type="button" class="link-action" x-show="step === 'cart' && lines.length" x-cloak @click="clear">Limpar</button>
+        <button type="button" class="btn-icon -mr-2 min-h-9 w-9 md:hidden" @click="cartOpen = false" aria-label="Fechar carrinho">{% include "components/icon.html" with name="close" %}</button>
+      </div>
+
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <div x-show="step === 'cart'">
+          <div class="flex flex-col items-center px-6 py-12 text-center text-muted" x-show="!lines.length">
+            <span class="[&_svg]:h-8 [&_svg]:w-8">{% include "components/icon.html" with name="cart" %}</span>
+            <p class="mt-2 text-sm">Toque em um produto para começar.</p>
+          </div>
+          <ul class="divide" x-show="lines.length" x-cloak>
+            <template x-for="line in lines" :key="line.id">
+              <li class="flex items-center gap-2 px-4 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium" x-text="line.nome"></p>
+                  <p class="text-xs tabular-nums text-muted" x-text="money(line.subtotal)"></p>
+                </div>
+                <div class="stepper">
+                  <button type="button" @click="decrease(line.id)" :aria-label="'Tirar um de ' + line.nome">−</button>
+                  <span class="tabular-nums" x-text="line.qty"></span>
+                  <button type="button" @click="add(line.id)" :disabled="!canAdd(line.id)" :aria-label="'Adicionar um de ' + line.nome">+</button>
+                </div>
+              </li>
+            </template>
+          </ul>
+        </div>
+
+        <div class="flex flex-col gap-4 p-4" x-show="step === 'pay'" x-cloak>
+          <fieldset>
+            <legend class="label">Forma de pagamento</legend>
+            <div class="grid grid-cols-3 gap-2">
+              {% for value, label in formas %}
+              <button type="button" class="pay-option" :class="{ 'is-selected': forma === '{{ value }}' }" :aria-pressed="forma === '{{ value }}'" @click="chooseForma('{{ value }}')">
+                {% include "components/icon.html" with name=value|lower %}
+                <span>{{ label }}</span>
+              </button>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <div x-show="forma === 'DINHEIRO'" x-cloak>
+            <label class="label" for="pdv-recebido">Valor recebido <span class="label-optional">opcional</span></label>
+            <div class="input-group">
+              <span class="input-affix">R$</span>
+              <input id="pdv-recebido" class="input" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" x-model="recebido">
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <template x-for="note in notes" :key="note">
+                <button type="button" class="time-chip min-h-9 px-2.5" @click="recebido = String(note)" x-text="'R$ ' + note"></button>
+              </template>
+            </div>
+            <p class="mt-2 text-sm font-medium text-success" x-show="change > 0" x-text="'Troco: ' + money(change)"></p>
+            <p class="field-error" x-show="recebidoShort" x-cloak>O valor recebido é menor que o total.</p>
+          </div>
+
+          <fieldset x-show="reservas.length">
+            <legend class="label">Ou lançar na comanda da reserva</legend>
+            <div class="flex flex-col gap-2">
+              <template x-for="reserva in reservas" :key="reserva.id">
+                <button type="button" class="pay-option flex-row justify-start gap-3 px-3 text-left" :data-theme="reserva.tema" :class="{ 'is-selected': reservaId === reserva.id }" :aria-pressed="reservaId === reserva.id" @click="chooseReserva(reserva.id)">
+                  <span class="w-11 shrink-0 font-semibold tabular-nums text-primary" x-text="reserva.hora"></span>
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-medium text-text" x-text="reserva.cliente"></span>
+                    <span class="block truncate text-xs" x-text="reserva.espaco"></span>
+                  </span>
+                </button>
+              </template>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+
+      <div class="border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div class="mb-3 flex items-baseline justify-between">
+          <span class="text-sm text-muted"><span x-text="count"></span> <span x-text="count === 1 ? 'item' : 'itens'"></span></span>
+          <span class="neon-text font-display text-[26px] font-semibold text-primary" x-text="money(totalCents)"></span>
+        </div>
+        <button class="btn-primary w-full" type="button" x-show="step === 'cart'" :disabled="!lines.length" @click="step = 'pay'">Cobrar</button>
+        <button class="btn-primary w-full" type="submit" x-show="step === 'pay'" x-cloak :disabled="!canConfirm" x-text="reservaId ? 'Lançar na comanda' : 'Confirmar venda'"></button>
+      </div>
+    </form>
+  </aside>
+
+  <button type="button" class="pdv-bar md:hidden" x-show="lines.length && !cartOpen" x-cloak @click="cartOpen = true">
+    <span class="tabular-nums"><span x-text="count"></span> <span x-text="count === 1 ? 'item' : 'itens'"></span> · <span x-text="money(totalCents)"></span></span>
+    <span class="font-semibold">Ver carrinho</span>
+  </button>
+</div>
+{% endif %}
+{% endblock %}

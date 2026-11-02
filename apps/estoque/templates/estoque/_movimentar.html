@@ -1,0 +1,41 @@
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body"
+      x-data="stockMove($el.dataset)" data-atual="{{ produto.estoque_atual }}" @input="refresh" @change="refresh">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Movimentar estoque" %}
+  <div class="sheet-body">
+    <div class="ticket">
+      <div class="min-w-0">
+        <p class="truncate font-medium">{{ produto.nome }}</p>
+        <p class="text-sm text-muted">Saldo depois de salvar</p>
+      </div>
+      <p class="ticket-time tabular-nums"><span class="text-muted [text-shadow:none]">{{ produto.estoque_atual }} → </span><span x-text="novo"></span></p>
+    </div>
+
+    {% include "components/form_errors.html" %}
+
+    <fieldset>
+      <legend class="label">{{ form.tipo.label }}</legend>
+      <div class="grid grid-cols-3 gap-2">
+        {% for option in form.tipo %}<label class="choice-card justify-center text-sm font-medium">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+      </div>
+      {% for error in form.tipo.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+
+    <div>
+      <label class="label" for="{{ form.quantidade.id_for_label }}" x-text="tipo === 'AJUSTE' ? 'Quanto tem na prateleira' : 'Quantidade'">{{ form.quantidade.label }}</label>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-secondary w-11 shrink-0 px-0 text-lg" @click="step(-1)" aria-label="Diminuir">−</button>
+        {{ form.quantidade }}
+        <button type="button" class="btn-secondary w-11 shrink-0 px-0 text-lg" @click="step(1)" aria-label="Aumentar">+</button>
+      </div>
+      {% for error in form.quantidade.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </div>
+
+    <div x-show="tipo === 'ENTRADA'">{% include "components/field.html" with field=form.custo prefix="R$" %}</div>
+    {% include "components/field.html" with field=form.observacao %}
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">Salvar</button>
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

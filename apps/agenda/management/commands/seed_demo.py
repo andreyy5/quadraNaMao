@@ -16,6 +16,10 @@ from apps.clientes.services import find_or_create_client
 from apps.espacos.models import DiaSemana, Espaco
 from apps.espacos.services import save_price_rules, save_weekly_hours
 from apps.estabelecimentos.models import Estabelecimento
+from apps.estoque.models import MovimentacaoEstoque, Produto
+from apps.estoque.services import register_entry
+from apps.pdv.models import Venda
+from apps.pdv.services import add_to_tab, complete_sale
 
 SLUG = "arena-demo"
 ESPACOS = [
@@ -31,6 +35,18 @@ CLIENTES = [
     ("Rafael Lima", "11987650004"),
     ("Turma do Beto", "11987650005"),
 ]
+# Nome, categoria, preço, custo, estoque inicial (None: sem controle), estoque mínimo.
+PRODUTOS = [
+    ("Água 500 ml", Produto.Categoria.BEBIDA, "4.00", "1.50", 48, 12),
+    ("Refrigerante lata", Produto.Categoria.BEBIDA, "6.00", "3.00", 36, 12),
+    ("Isotônico", Produto.Categoria.BEBIDA, "9.00", "5.00", 8, 10),
+    ("Cerveja long neck", Produto.Categoria.BEBIDA, "10.00", "5.50", 60, 24),
+    ("Salgadinho", Produto.Categoria.COMIDA, "7.00", "3.50", 15, 5),
+    ("Barra de cereal", Produto.Categoria.COMIDA, "5.00", "2.50", 0, 5),
+    ("Aluguel de bola", Produto.Categoria.ALUGUEL, "10.00", None, None, 0),
+    ("Aluguel de raquete", Produto.Categoria.ALUGUEL, "20.00", None, None, 0),
+    ("Bola de beach tênis", Produto.Categoria.ACESSORIO, "35.00", "20.00", 10, 3),
+]
 
 
 class Command(BaseCommand):
@@ -40,6 +56,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--reset", action="store_true", help="Apaga o estabelecimento de demonstração antes."
         )
+        parser.add_argument(
+            "--produtos",
+            action="store_true",
+            help="Só acrescenta produtos e vendas a uma demonstração já criada, sem mexer no resto.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -47,6 +68,15 @@ class Command(BaseCommand):
             raise CommandError("O seed_demo só pode rodar em desenvolvimento.")
 
         existing = Estabelecimento.objects.filter(slug=SLUG).first()
+        if options["produtos"]:
+            if not existing:
+                raise CommandError("A demonstração ainda não existe. Rode o seed_demo sem opções.")
+            if Produto.all_tenants.filter(estabelecimento=existing).exists():
+                raise CommandError("A demonstração já tem produtos.")
+            owner = get_user_model().objects.filter(estabelecimento=existing, papel="DONO").first()
+            self._seed_sales(existing, owner)
+            self.stdout.write(self.style.SUCCESS("Produtos e vendas de demonstração criados."))
+            return
         if existing and not options["reset"]:
             raise CommandError("A demonstração já existe. Use --reset para recriar.")
         if existing:
@@ -107,11 +137,49 @@ class Command(BaseCommand):
         rain = datetime.combine(today + timedelta(days=2), time(14), tzinfo=tz)
         create_block(espacos[1], rain, rain + timedelta(hours=3), "CHUVA", "Previsão de chuva forte", owner)
 
+        self._seed_sales(tenant, owner)
+
         self.stdout.write(self.style.SUCCESS("Demonstração criada."))
         self.stdout.write("  Dono:      dono@demo.local")
         self.stdout.write("  Atendente: atendente@demo.local")
         self.stdout.write(f"  Senha:     {password}")
 
+    def _seed_sales(self, tenant, owner):
+        produtos = {}
+        for nome, categoria, preco, custo, estoque, minimo in PRODUTOS:
+            produto = Produto.all_tenants.create(
+                estabelecimento=tenant,
+                nome=nome,
+                categoria=categoria,
+                preco_venda=Decimal(preco),
+                custo=Decimal(custo) if custo else None,
+                controla_estoque=estoque is not None,
+                estoque_minimo=minimo,
+            )
+            if estoque:
+                register_entry(produto, estoque, usuario=owner, observacao="Estoque inicial")
+            produtos[nome] = produto.pk
+
+        complete_sale(
+            tenant,
+            {produtos["Água 500 ml"]: 2, produtos["Salgadinho"]: 1},
+            Venda.Forma.PIX,
+            usuario=owner,
+        )
+        complete_sale(tenant, {produtos["Aluguel de bola"]: 1}, Venda.Forma.DINHEIRO, usuario=owner)
+        today = timezone.now().astimezone(tenant.timezone).date()
+        reserva = (
+            Reserva.all_tenants.filter(estabelecimento=tenant, status=Reserva.Status.CONFIRMADA)
+            .filter(inicio__date=today)
+            .order_by("inicio")
+            .first()
+        )
+        if reserva:
+            add_to_tab(tenant, reserva, {produtos["Cerveja long neck"]: 4}, usuario=owner)
+
     def _delete(self, tenant):
+        Venda.all_tenants.filter(estabelecimento=tenant).delete()
+        MovimentacaoEstoque.all_tenants.filter(estabelecimento=tenant).delete()
+        Produto.all_tenants.filter(estabelecimento=tenant).delete()
         Reserva.all_tenants.filter(estabelecimento=tenant).delete()
         tenant.delete()

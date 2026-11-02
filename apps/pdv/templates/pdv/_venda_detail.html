@@ -1,0 +1,85 @@
+{% load ui %}
+<div {% if venda.reserva %}data-theme="{{ venda.reserva.espaco.tema }}"{% endif %} x-data="tabPayment($el.dataset)" data-total="{{ venda.total|stringformat:'s' }}">
+  {% if venda.is_tab %}{% include "components/modal_header.html" with title="Comanda" %}{% else %}{% include "components/modal_header.html" with title="Venda" %}{% endif %}
+  <div class="sheet-body">
+    <div class="ticket {% if venda.is_cancelled %}ticket-muted{% endif %}">
+      <div class="min-w-0">
+        <p class="ticket-time {% if venda.is_cancelled %}text-muted line-through [text-shadow:none]{% endif %}">{{ venda.total|brl }}</p>
+        <p class="mt-0.5 truncate text-sm text-muted">#{{ venda.numero }}{% if venda.concluida_em %} · {{ venda.concluida_em|date:"d/m" }} às {{ venda.concluida_em|time:"H:i" }}{% endif %}{% if venda.criado_por %} · {{ venda.criado_por.get_short_name }}{% endif %}</p>
+      </div>
+      <span class="badge {% if venda.is_tab %}badge-pendente{% elif venda.is_cancelled %}badge-cancelada{% else %}badge-concluida{% endif %}">{{ venda.get_status_display }}</span>
+    </div>
+
+    {% if venda.reserva %}
+    <div class="client-card">
+      <span class="avatar" aria-hidden="true">{{ venda.reserva.cliente.nome|initials }}</span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-medium">{{ venda.reserva.cliente.nome }}</p>
+        <p class="truncate text-sm text-muted">{{ venda.reserva.espaco.nome }} · {{ venda.reserva.inicio|date:"d/m" }} às {{ venda.reserva.inicio|time:"H:i" }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <ul class="card divide overflow-hidden">
+      {% for item in venda.itens.all %}
+      <li class="flex items-center gap-3 px-3.5 py-2 text-sm">
+        <span class="w-7 shrink-0 tabular-nums text-muted">{{ item.quantidade }}x</span>
+        <span class="min-w-0 flex-1 truncate">{{ item.produto.nome }}</span>
+        <span class="font-medium tabular-nums">{{ item.subtotal|brl }}</span>
+        {% if venda.is_tab %}
+        <button type="button" class="btn-icon -my-1 -mr-2 min-h-9 w-9" hx-post="{% url 'pdv:remover_item' item.pk %}" aria-label="Retirar {{ item.produto.nome }} da comanda" title="Retirar da comanda"><span class="[&_svg]:h-4 [&_svg]:w-4">{% include "components/icon.html" with name="close" %}</span></button>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if not venda.is_tab and not venda.is_cancelled %}
+    <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      <div><dt class="text-muted">Pagamento</dt><dd class="font-medium">{{ venda.get_forma_pagamento_display }}</dd></div>
+      {% if venda.valor_recebido is not None %}<div><dt class="text-muted">Recebido</dt><dd class="font-medium tabular-nums">{{ venda.valor_recebido|brl }}{% if venda.troco %} · troco {{ venda.troco|brl }}{% endif %}</dd></div>{% endif %}
+    </dl>
+    {% endif %}
+
+    {% if venda.is_cancelled %}
+    <p class="rounded-xl bg-surface-2/70 px-3.5 py-3 text-sm text-muted">Cancelada{% if venda.cancelada_em %} em {{ venda.cancelada_em|date:"d/m" }} às {{ venda.cancelada_em|time:"H:i" }}{% endif %}{% if venda.cancelada_por %} por {{ venda.cancelada_por.get_short_name }}{% endif %}{% if venda.motivo_cancelamento %}: {{ venda.motivo_cancelamento }}{% endif %}.</p>
+    {% endif %}
+
+    {% if venda.is_tab %}
+    <form id="receber-form" hx-post="{% url 'pdv:receber' venda.pk %}" class="flex flex-col gap-3">
+      <input type="hidden" name="forma" :value="forma">
+      <input type="hidden" name="recebido" :value="recebidoValue">
+      <fieldset>
+        <legend class="label">Receber com</legend>
+        <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {% for value, label in formas %}
+          <button type="button" class="pay-option" :class="{ 'is-selected': forma === '{{ value }}' }" :aria-pressed="forma === '{{ value }}'" @click="forma = '{{ value }}'">
+            {% include "components/icon.html" with name=value|lower %}
+            <span>{{ label }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div x-show="forma === 'DINHEIRO'" x-cloak>
+        <label class="label" for="comanda-recebido">Valor recebido <span class="label-optional">opcional</span></label>
+        <div class="input-group"><span class="input-affix">R$</span><input id="comanda-recebido" class="input" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" x-model="recebido"></div>
+        <p class="mt-2 text-sm font-medium text-success" x-show="change > 0" x-text="'Troco: ' + money(change)"></p>
+        <p class="field-error" x-show="recebidoShort" x-cloak>O valor recebido é menor que o total.</p>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if venda.is_tab %}
+  <div class="sheet-foot flex-col items-stretch">
+    <button class="btn-primary w-full" type="submit" form="receber-form" :disabled="!forma || recebidoShort">Receber {{ venda.total|brl }}</button>
+    <div class="flex justify-between gap-2">
+      <a class="link-action min-h-9" href="{% url 'pdv:home' %}?reserva={{ venda.reserva_id }}">Lançar mais consumo</a>
+      <button class="link-action min-h-9 text-danger hover:text-danger" type="button" hx-get="{% url 'pdv:cancelar' venda.pk %}" hx-target="#modal-body">Cancelar comanda</button>
+    </div>
+  </div>
+  {% elif can_cancel %}
+  <div class="sheet-foot justify-end">
+    <button class="link-action min-h-9 text-danger hover:text-danger" type="button" hx-get="{% url 'pdv:cancelar' venda.pk %}" hx-target="#modal-body">Cancelar venda</button>
+  </div>
+  {% endif %}
+</div>

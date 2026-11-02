@@ -1,0 +1,15 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  <div class="flex flex-col items-center px-6 pb-2 pt-7 text-center">
+    <span class="danger-mark">{% include "components/icon.html" with name="alert" %}</span>
+    <h2 class="mt-4 text-lg">{% if venda.is_tab %}Cancelar esta comanda?{% else %}Cancelar a venda #{{ venda.numero }}?{% endif %}</h2>
+    <p class="mt-1 text-sm text-muted">{{ venda.total|brl }}. Os itens voltam ao estoque e o registro continua no histórico.</p>
+    {% if error %}<div class="form-alert mt-4 w-full" role="alert">{{ error }}</div>{% endif %}
+    <div class="mt-4 w-full text-left">{% include "components/field.html" with field=form.motivo %}</div>
+  </div>
+  <div class="flex gap-2 p-5">
+    <button class="btn-ghost flex-1" type="button" data-close-modal>Manter</button>
+    <button class="btn-danger flex-1" type="submit">Sim, cancelar</button>
+  </div>
+</form>

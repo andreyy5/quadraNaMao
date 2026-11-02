@@ -26,6 +26,23 @@
 
     {% if reserva.observacoes %}<p class="whitespace-pre-line rounded-xl bg-surface-2/70 px-3.5 py-3 text-sm">{{ reserva.observacoes }}</p>{% endif %}
 
+    {% if consumos or reserva.is_open %}
+    <section aria-label="Consumo">
+      <div class="mb-1.5 flex items-center justify-between gap-2">
+        <span class="label mb-0">Consumo</span>
+        <a class="link-action text-primary" href="{% url 'pdv:home' %}?reserva={{ reserva.pk }}">Lançar consumo</a>
+      </div>
+      {% for venda in consumos %}
+      <button type="button" class="client-card w-full text-left transition-colors hover:border-primary/50" hx-get="{% url 'pdv:venda_detail' venda.pk %}" hx-target="#modal-body">
+        <span class="min-w-0 flex-1 text-sm">{{ venda.get_status_display }} · #{{ venda.numero }}</span>
+        <span class="font-semibold tabular-nums">{{ venda.total|brl }}</span>
+      </button>
+      {% empty %}
+      <p class="text-sm text-muted">Nada lançado nesta reserva.</p>
+      {% endfor %}
+    </section>
+    {% endif %}
+
     {% if eventos %}
     <details class="text-sm">
       <summary class="cursor-pointer text-muted transition-colors hover:text-text">Histórico</summary>

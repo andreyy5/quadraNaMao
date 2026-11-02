@@ -68,6 +68,14 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                 "modal": reverse("agenda:bloqueio_create"),
                 "terms": "chuva manutencao evento fechar",
             },
+            {"label": "Vender (PDV)", "icon": "cart", "url": reverse("pdv:home"), "terms": "caixa venda bar"},
+            {
+                "label": "Comandas abertas",
+                "icon": "receipt",
+                "url": reverse("pdv:comandas"),
+                "terms": "consumo",
+            },
+            {"label": "Vendas do dia", "icon": "receipt", "url": reverse("pdv:vendas"), "terms": "historico"},
             {"label": "Agenda do dia", "icon": "calendar", "url": reverse("agenda:day"), "terms": "hoje"},
             {"label": "Agenda da semana", "icon": "calendar", "url": reverse("agenda:week"), "terms": ""},
             {
@@ -84,6 +92,21 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                 "terms": "",
             },
         ]
+        if self.request.user.is_manager:
+            actions += [
+                {
+                    "label": "Estoque",
+                    "icon": "box",
+                    "url": reverse("estoque:list"),
+                    "terms": "produtos compra",
+                },
+                {
+                    "label": "Novo produto",
+                    "icon": "box",
+                    "url": reverse("estoque:create"),
+                    "terms": "cadastrar",
+                },
+            ]
         if self.request.user.is_owner:
             actions += [
                 {

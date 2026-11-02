@@ -88,6 +88,22 @@
 </section>
 {% endif %}
 
+{% if has_products %}
+<section class="mb-6" aria-labelledby="vendas-hoje">
+  <div class="mb-2 flex items-center justify-between gap-2">
+    <h2 id="vendas-hoje">Vendas de hoje</h2>
+    <a class="link-action" href="{% url 'pdv:home' %}">Abrir o PDV</a>
+  </div>
+  <div class="grid gap-3 sm:grid-cols-3">
+    <a class="stat card-hover block" href="{% url 'pdv:vendas' %}"><span class="block text-sm text-muted">{{ sales.count }} venda{{ sales.count|pluralize }}</span><span class="stat-value block">{{ sales.total|brl }}</span></a>
+    <a class="stat card-hover block" href="{% url 'pdv:comandas' %}"><span class="block text-sm text-muted">{{ sales.tabs_count }} comanda{{ sales.tabs_count|pluralize }} aberta{{ sales.tabs_count|pluralize }}</span><span class="stat-value block">{{ sales.tabs_total|brl }}</span></a>
+    {% if request.user.is_manager %}
+    <a class="stat card-hover block" href="{% url 'estoque:list' %}?filtro=baixo"><span class="block text-sm text-muted">Produtos para repor</span><span class="stat-value block {% if stock.low %}text-warning{% endif %}">{{ stock.low }}</span></a>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 {% if next_games %}
 <section aria-labelledby="proximos">
   <h2 id="proximos" class="mb-2">Depois</h2>

@@ -293,6 +293,7 @@ class ReservaDetailView(TenantRequiredMixin, ModalResponseMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["eventos"] = self.object.eventos.select_related("usuario")
+        context["consumos"] = self.object.vendas.exclude(status="CANCELADA")
         return context
 
 

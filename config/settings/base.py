@@ -27,6 +27,8 @@ INSTALLED_APPS = [
     "apps.espacos",
     "apps.clientes",
     "apps.agenda",
+    "apps.estoque",
+    "apps.pdv",
     "apps.relatorios",
 ]
 

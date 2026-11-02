@@ -2,8 +2,11 @@
   const TOAST_KEY = "qnm-toast";
   const MODE_KEY = "qnm-mode";
   const TAB_KEY = "qnm-agenda-tab";
+  const CART_KEY = "qnm-pdv-cart";
   const CHECK_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg>';
+  const ALERT_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.800 20h18.400L12 4Z"/><path d="M12 10v4.500M12 17.500v.01"/></svg>';
   let lastToast = null;
 
   function readCookie(name) {
@@ -212,13 +215,13 @@
     setTimeout(() => dismiss(element), 4500);
   }
 
-  function showToast(message) {
+  function showToast(message, level) {
     const host = document.getElementById("toasts");
     if (!host) return;
     const toast = document.createElement("div");
-    toast.className = "toast pointer-events-auto";
-    toast.setAttribute("role", "status");
-    toast.innerHTML = CHECK_ICON;
+    toast.className = `toast pointer-events-auto ${level === "error" ? "toast-error" : ""}`;
+    toast.setAttribute("role", level === "error" ? "alert" : "status");
+    toast.innerHTML = level === "error" ? ALERT_ICON : CHECK_ICON;
     const text = document.createElement("span");
     text.textContent = message;
     toast.appendChild(text);
@@ -260,15 +263,16 @@
     const queued = sessionStorage.getItem(TOAST_KEY);
     if (queued) {
       sessionStorage.removeItem(TOAST_KEY);
-      showToast(queued);
+      const { message, level } = JSON.parse(queued);
+      showToast(message, level);
     }
     updateCountdowns();
     revealNow();
   }
 
   document.addEventListener("toast", (event) => {
-    lastToast = event.detail.message;
-    showToast(lastToast);
+    lastToast = { message: event.detail.message, level: event.detail.level };
+    showToast(lastToast.message, lastToast.level);
   });
 
   /* A atualização da agenda troca a grade inteira: a rolagem precisa continuar onde estava. */
@@ -297,7 +301,7 @@
       window.htmx.trigger(target, "refresh");
       return;
     }
-    if (lastToast) sessionStorage.setItem(TOAST_KEY, lastToast);
+    if (lastToast) sessionStorage.setItem(TOAST_KEY, JSON.stringify(lastToast));
     location.reload();
   });
 
@@ -478,6 +482,240 @@
         const inicio = value("hora_inicio");
         const fim = value("hora_fim");
         this.resumo.horario = this.diaTodo ? "Dia todo" : inicio && fim ? `${inicio}–${fim}` : "Escolha o horário";
+      },
+    }));
+
+    const parseMoney = (raw) => {
+      // "1.234,50" e "50,00" são o padrão daqui, mas alguns teclados só têm ponto: "50.00" vale 50.
+      let text = String(raw).trim();
+      if (text.includes(",")) text = text.replace(/\./g, "").replace(",", ".");
+      else if (/^\d{1,3}(\.\d{3})+$/.test(text)) text = text.replace(/\./g, "");
+      const value = Number(text);
+      return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0;
+    };
+    const formatMoney = (cents) =>
+      (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    Alpine.data("pdv", () => ({
+      products: [],
+      allowNegative: false,
+      reservas: [],
+      cart: {},
+      query: "",
+      categoria: "",
+      step: "cart",
+      cartOpen: false,
+      forma: "",
+      reservaId: "",
+      recebido: "",
+      init() {
+        const data = JSON.parse(document.getElementById("pdv-data").textContent);
+        this.products = data.produtos.map((produto) => ({
+          ...produto,
+          cents: Math.round(Number(produto.preco) * 100),
+          search: this.plain(`${produto.nome} ${produto.codigo}`),
+        }));
+        this.allowNegative = data.permiteNegativo;
+        this.reservas = data.reservas;
+        this.restore();
+        if (data.reservaSelecionada) {
+          this.reservaId = data.reservaSelecionada;
+          this.step = this.lines.length ? "pay" : "cart";
+        }
+        this.$watch("cart", () => sessionStorage.setItem(CART_KEY, JSON.stringify(this.cart)));
+      },
+      plain(text) {
+        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      },
+      /* O carrinho sobrevive à troca de tela, mas respeita o catálogo e o estoque atuais. */
+      restore() {
+        let saved = {};
+        try {
+          saved = JSON.parse(sessionStorage.getItem(CART_KEY)) || {};
+        } catch (error) {
+          saved = {};
+        }
+        const cart = {};
+        Object.entries(saved).forEach(([id, qty]) => {
+          const produto = this.product(Number(id));
+          if (!produto) return;
+          const limit = produto.controla && !this.allowNegative ? Math.max(produto.estoque, 0) : qty;
+          if (Math.min(qty, limit) > 0) cart[id] = Math.min(qty, limit);
+        });
+        this.cart = cart;
+      },
+      product(id) {
+        return this.products.find((produto) => produto.id === id);
+      },
+      qty(id) {
+        return this.cart[id] || 0;
+      },
+      matches(produto) {
+        if (this.categoria && produto.categoria !== this.categoria) return false;
+        return !this.query.trim() || produto.search.includes(this.plain(this.query.trim()));
+      },
+      isVisible(id) {
+        const produto = this.product(id);
+        return Boolean(produto) && this.matches(produto);
+      },
+      get hasVisible() {
+        return this.products.some((produto) => this.matches(produto));
+      },
+      remaining(id) {
+        const produto = this.product(id);
+        return produto ? produto.estoque - this.qty(id) : 0;
+      },
+      canAdd(id) {
+        const produto = this.product(id);
+        if (!produto) return false;
+        return !produto.controla || this.allowNegative || this.remaining(id) > 0;
+      },
+      stockLabel(id) {
+        const remaining = this.remaining(id);
+        return remaining > 0 ? `${remaining} un.` : "Esgotado";
+      },
+      stockClass(id) {
+        const produto = this.product(id);
+        if (!produto || this.remaining(id) <= 0) return "text-danger";
+        return produto.baixo ? "text-warning" : "text-muted";
+      },
+      add(id) {
+        if (this.canAdd(id)) this.cart = { ...this.cart, [id]: this.qty(id) + 1 };
+      },
+      decrease(id) {
+        const cart = { ...this.cart };
+        if (cart[id] > 1) cart[id] -= 1;
+        else delete cart[id];
+        this.cart = cart;
+        if (!this.lines.length) this.step = "cart";
+      },
+      clear() {
+        this.cart = {};
+        this.step = "cart";
+        this.forma = "";
+        this.reservaId = "";
+        this.recebido = "";
+        sessionStorage.removeItem(CART_KEY);
+      },
+      /* Enter na busca: um leitor de código de barras digita o código e aperta Enter sozinho. */
+      addFromSearch() {
+        const query = this.query.trim();
+        if (!query) return;
+        const visible = this.products.filter((produto) => this.matches(produto));
+        const match = this.products.find((produto) => produto.codigo === query) || (visible.length === 1 && visible[0]);
+        if (match) {
+          this.add(match.id);
+          this.query = "";
+        }
+      },
+      get lines() {
+        return Object.keys(this.cart).map((key) => {
+          const id = Number(key);
+          const produto = this.product(id);
+          return { id, nome: produto.nome, qty: this.cart[key], subtotal: produto.cents * this.cart[key] };
+        });
+      },
+      get count() {
+        return Object.values(this.cart).reduce((sum, qty) => sum + qty, 0);
+      },
+      get totalCents() {
+        return this.lines.reduce((sum, line) => sum + line.subtotal, 0);
+      },
+      get totalValue() {
+        return (this.totalCents / 100).toFixed(2);
+      },
+      get recebidoCents() {
+        return this.forma === "DINHEIRO" ? parseMoney(this.recebido) : 0;
+      },
+      get recebidoValue() {
+        return this.recebidoCents ? (this.recebidoCents / 100).toFixed(2) : "";
+      },
+      get recebidoShort() {
+        return this.recebidoCents > 0 && this.recebidoCents < this.totalCents;
+      },
+      get change() {
+        return this.recebidoCents > this.totalCents ? this.recebidoCents - this.totalCents : 0;
+      },
+      /* Sugestões de nota: as que cobrem o total. */
+      get notes() {
+        return [10, 20, 50, 100, 200].filter((note) => note * 100 >= this.totalCents).slice(0, 4);
+      },
+      get canConfirm() {
+        return this.lines.length > 0 && (this.reservaId || (this.forma && !this.recebidoShort));
+      },
+      chooseForma(forma) {
+        this.forma = forma;
+        this.reservaId = "";
+      },
+      chooseReserva(id) {
+        this.reservaId = id;
+        this.forma = "";
+      },
+      money: formatMoney,
+      /* Só a resposta da própria venda esvazia o carrinho: um aviso de outro painel não mexe nele. */
+      onToast(detail) {
+        if (detail.elt === this.$refs.form && detail.level !== "error") this.clear();
+      },
+    }));
+
+    Alpine.data("tabPayment", (data) => ({
+      forma: "",
+      recebido: "",
+      totalCents: Math.round(Number(data.total) * 100),
+      get recebidoCents() {
+        return this.forma === "DINHEIRO" ? parseMoney(this.recebido) : 0;
+      },
+      get recebidoValue() {
+        return this.recebidoCents ? (this.recebidoCents / 100).toFixed(2) : "";
+      },
+      get recebidoShort() {
+        return this.recebidoCents > 0 && this.recebidoCents < this.totalCents;
+      },
+      get change() {
+        return this.recebidoCents > this.totalCents ? this.recebidoCents - this.totalCents : 0;
+      },
+      money: formatMoney,
+    }));
+
+    Alpine.data("productForm", (data) => ({
+      controla: data.controla !== "false",
+      margin: null,
+      init() {
+        this.form = this.$el;
+        this.refresh();
+      },
+      refresh() {
+        const value = (name) => parseMoney(this.form.querySelector(`[name="${name}"]`).value);
+        this.controla = this.form.querySelector('[name="controla_estoque"]').checked;
+        const preco = value("preco_venda");
+        const custo = value("custo");
+        this.margin = preco && custo && preco > custo ? Math.round(((preco - custo) * 100) / preco) : null;
+      },
+    }));
+
+    Alpine.data("stockMove", (data) => ({
+      atual: Number(data.atual),
+      tipo: "ENTRADA",
+      novo: 0,
+      init() {
+        this.form = this.$el;
+        this.refresh();
+      },
+      input() {
+        return this.form.querySelector('[name="quantidade"]');
+      },
+      step(delta) {
+        const input = this.input();
+        input.value = Math.max(0, Number(input.value || 0) + delta);
+        this.refresh();
+      },
+      refresh() {
+        const checked = this.form.querySelector('[name="tipo"]:checked');
+        this.tipo = checked ? checked.value : "ENTRADA";
+        const quantidade = Number(this.input().value || 0);
+        if (this.tipo === "ENTRADA") this.novo = this.atual + quantidade;
+        else if (this.tipo === "PERDA") this.novo = this.atual - quantidade;
+        else this.novo = quantidade;
       },
     }));
 

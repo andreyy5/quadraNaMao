@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{% if produto %}{{ produto.nome }}{% else %}Novo produto{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% if produto %}{% url 'estoque:detail' produto.pk %}{% else %}{% url 'estoque:list' %}{% endif %}">{% include "components/icon.html" with name="left" %} Voltar</a>
+<h1 class="mb-5">{% if produto %}Editar produto{% else %}Novo produto{% endif %}</h1>
+
+<form method="post" class="form-card" x-data="productForm($el.dataset)" data-controla="{{ form.controla_estoque.value|yesno:'true,false' }}" @input="refresh" @change="refresh">
+  {% csrf_token %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.nome %}
+    <fieldset>
+      <legend class="label">{{ form.categoria.label|capfirst }}</legend>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {% for option in form.categoria %}
+        <label class="choice-card choice-card-col">
+          {{ option.tag }}
+          {% include "components/icon.html" with name=option.data.value|lower %}
+          <span class="text-sm font-medium">{{ option.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% for error in form.categoria.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+    <div>
+      <div class="grid grid-cols-2 gap-4">
+        {% include "components/field.html" with field=form.preco_venda prefix="R$" %}
+        {% include "components/field.html" with field=form.custo prefix="R$" %}
+      </div>
+      <p class="help text-success" x-show="margin !== null" x-cloak x-text="'Margem de ' + margin + '% em cada venda.'"></p>
+    </div>
+    <div>
+      {% include "components/checkbox.html" with field=form.controla_estoque %}
+      <div class="mt-3 grid gap-4 sm:grid-cols-2" x-show="controla" x-cloak>
+        {% if form.estoque_inicial %}{% include "components/field.html" with field=form.estoque_inicial hide_optional=True %}{% endif %}
+        {% include "components/field.html" with field=form.estoque_minimo %}
+      </div>
+    </div>
+    {% include "components/field.html" with field=form.codigo %}
+    {% include "components/checkbox.html" with field=form.ativo %}
+  </div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">{% if produto %}Salvar alterações{% else %}Cadastrar produto{% endif %}</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,5 @@
+<nav class="mb-5 flex gap-1 overflow-x-auto" aria-label="Seções do PDV">
+  <a class="tab {% if active_tab == 'vender' %}is-active{% endif %}" href="{% url 'pdv:home' %}">Vender</a>
+  <a class="tab gap-1.5 {% if active_tab == 'comandas' %}is-active{% endif %}" href="{% url 'pdv:comandas' %}">Comandas{% if tabs_count %} <span class="rounded-full bg-primary/15 px-1.5 text-xs font-semibold tabular-nums text-primary">{{ tabs_count }}</span>{% endif %}</a>
+  <a class="tab {% if active_tab == 'vendas' %}is-active{% endif %}" href="{% url 'pdv:vendas' %}">Vendas</a>
+</nav>

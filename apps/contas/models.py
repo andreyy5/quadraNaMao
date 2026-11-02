@@ -67,3 +67,8 @@ class Usuario(AbstractUser):
     @property
     def is_owner(self):
         return self.papel == self.Papel.DONO
+
+    @property
+    def is_manager(self):
+        """Dono ou gerente: cuidam do estoque e cancelam vendas já pagas."""
+        return self.papel in (self.Papel.DONO, self.Papel.GERENTE)

@@ -21,7 +21,11 @@
     <nav class="flex flex-1 flex-col gap-1">
       <a class="nav-side {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
       <a class="nav-side {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
+      <a class="nav-side {% nav_active '/pdv' %}" href="{% url 'pdv:home' %}">{% include "components/icon.html" with name="cart" %} PDV</a>
       <a class="nav-side {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
+      {% if request.user.is_manager %}
+      <a class="nav-side {% nav_active '/estoque' %}" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
+      {% endif %}
       {% if request.user.is_owner %}
       <a class="nav-side {% nav_active '/espacos' %}" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
       <a class="nav-side {% nav_active '/ajustes' '/conta' %}" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
@@ -64,15 +68,26 @@
     </main>
   </div>
 
-  <button type="button" class="fab md:hidden" data-new-reserva hx-get="{{ new_reserva_url|default:default_new_reserva }}" hx-target="#modal-body" aria-label="Nova reserva">{% include "components/icon.html" with name="plus" %}</button>
+  {% block fab %}<button type="button" class="fab md:hidden" data-new-reserva hx-get="{{ new_reserva_url|default:default_new_reserva }}" hx-target="#modal-body" aria-label="Nova reserva">{% include "components/icon.html" with name="plus" %}</button>{% endblock %}
 
   <nav class="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden" aria-label="Menu principal">
     <a class="nav-bottom {% nav_active '/' %}" href="{% url 'relatorios:dashboard' %}">{% include "components/icon.html" with name="home" %} Hoje</a>
     <a class="nav-bottom {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
+    <a class="nav-bottom {% nav_active '/pdv' %}" href="{% url 'pdv:home' %}">{% include "components/icon.html" with name="cart" %} PDV</a>
     <a class="nav-bottom {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
-    {% if request.user.is_owner %}
-    <a class="nav-bottom {% nav_active '/espacos' %}" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
-    <a class="nav-bottom {% nav_active '/ajustes' '/conta' %}" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
+    {% if request.user.is_manager %}
+    <div class="relative flex flex-1" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" class="nav-bottom {% nav_active '/estoque' '/espacos' '/ajustes' '/conta' %}" :aria-expanded="open" aria-expanded="false" @click="open = !open">{% include "components/icon.html" with name="more" %} Mais</button>
+      <div class="nav-more" x-show="open" x-cloak>
+        <a class="nav-side" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
+        {% if request.user.is_owner %}
+        <a class="nav-side" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
+        <a class="nav-side" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
+        {% else %}
+        <a class="nav-side" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
+        {% endif %}
+      </div>
+    </div>
     {% else %}
     <a class="nav-bottom {% nav_active '/conta' %}" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
     {% endif %}

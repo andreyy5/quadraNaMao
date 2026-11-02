@@ -1,0 +1,4 @@
+{% if not produto.controla_estoque %}<span class="badge badge-cancelada">Sem controle</span>
+{% elif produto.is_out %}<span class="badge badge-nao_compareceu tabular-nums">Esgotado</span>
+{% elif produto.is_low %}<span class="badge badge-pendente tabular-nums">{{ produto.estoque_atual }} em estoque</span>
+{% else %}<span class="badge badge-concluida tabular-nums">{{ produto.estoque_atual }} em estoque</span>{% endif %}

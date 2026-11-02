@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Vendas · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% block content %}
+{% include "pdv/_tabs.html" %}
+
+<div class="mb-4 flex items-center gap-1">
+  <a class="btn-icon" href="{{ previous_url }}" aria-label="Dia anterior">{% include "components/icon.html" with name="left" %}</a>
+  <a class="btn-icon" href="{{ next_url }}" aria-label="Próximo dia">{% include "components/icon.html" with name="right" %}</a>
+  <h1 class="ml-1 text-xl first-letter:uppercase md:text-2xl">{{ heading }}</h1>
+</div>
+
+<dl class="stagger mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+  <div class="stat"><dt class="text-sm text-muted">Total vendido</dt><dd class="stat-value">{{ summary.total|brl }}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Vendas</dt><dd class="stat-value">{{ summary.count }}</dd></div>
+  <div class="stat col-span-2 sm:col-span-1">
+    <dt class="text-sm text-muted">Por forma</dt>
+    <dd class="mt-1 flex flex-col gap-0.5 text-sm">
+      {% for row in summary.por_forma %}
+      <span class="flex justify-between gap-2"><span class="text-muted">{{ row.label }}</span><span class="font-medium tabular-nums">{{ row.total|brl }}</span></span>
+      {% empty %}
+      <span class="text-muted">—</span>
+      {% endfor %}
+    </dd>
+  </div>
+</dl>
+
+{% if vendas %}
+<div class="card divide overflow-hidden">
+  {% for venda in vendas %}
+  <button class="row-link w-full text-left {% if venda.is_cancelled %}opacity-60{% endif %}" type="button" hx-get="{% url 'pdv:venda_detail' venda.pk %}" hx-target="#modal-body">
+    <span class="w-12 shrink-0 text-sm font-semibold tabular-nums text-primary">{{ venda.concluida_em|time:"H:i" }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate text-sm font-medium {% if venda.is_cancelled %}line-through{% endif %}">{% for item in venda.itens.all %}{{ item.quantidade }}x {{ item.produto.nome }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      <span class="block truncate text-xs text-muted">#{{ venda.numero }} · {% if venda.is_cancelled %}Cancelada{% else %}{{ venda.get_forma_pagamento_display }}{% endif %}{% if venda.reserva %} · {{ venda.reserva.cliente.nome }}{% endif %}</span>
+    </span>
+    <span class="font-medium tabular-nums {% if venda.is_cancelled %}line-through{% endif %}">{{ venda.total|brl }}</span>
+    <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
+  </button>
+  {% endfor %}
+</div>
+{% else %}
+<p class="card p-8 text-center text-muted">Nenhuma venda neste dia.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{{ produto.nome }} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="left" %} Estoque</a>
+
+<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex min-w-0 items-center gap-3.5">
+    <span class="product-icon h-14 w-14 [&_svg]:h-7 [&_svg]:w-7">{% include "components/icon.html" with name=produto.icone %}</span>
+    <div class="min-w-0">
+      <h1 class="truncate">{{ produto.nome }}</h1>
+      <p class="text-sm text-muted">{{ produto.get_categoria_display }}{% if produto.codigo %} · {{ produto.codigo }}{% endif %}{% if not produto.ativo %} · inativo{% endif %}</p>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if produto.controla_estoque %}<button class="btn-primary" type="button" hx-get="{% url 'estoque:movimentar' produto.pk %}" hx-target="#modal-body">Movimentar</button>{% endif %}
+    <a class="btn-secondary" href="{% url 'estoque:update' produto.pk %}">Editar</a>
+  </div>
+</div>
+
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <div class="stat"><dt class="text-sm text-muted">Em estoque</dt><dd class="stat-value {% if produto.is_out %}text-danger{% elif produto.is_low %}text-warning{% endif %}">{% if produto.controla_estoque %}{{ produto.estoque_atual }}{% else %}—{% endif %}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Mínimo</dt><dd class="stat-value">{% if produto.controla_estoque %}{{ produto.estoque_minimo }}{% else %}—{% endif %}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Preço</dt><dd class="stat-value">{{ produto.preco_venda|brl }}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Custo</dt><dd class="stat-value">{{ produto.custo|brl }}</dd></div>
+</dl>
+
+{% if produto.controla_estoque %}
+<h2 class="mb-2">Histórico</h2>
+{% if movimentacoes %}
+<ul class="card divide overflow-hidden">
+  {% for mov in movimentacoes %}
+  <li class="flex items-center gap-3 px-4 py-3">
+    <span class="w-12 shrink-0 font-semibold tabular-nums {% if mov.quantidade > 0 %}text-success{% else %}text-danger{% endif %}">{% if mov.quantidade > 0 %}+{% endif %}{{ mov.quantidade }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate text-sm font-medium">{{ mov.get_tipo_display }}{% if mov.referencia %} · {{ mov.referencia }}{% endif %}{% if mov.observacao %} · {{ mov.observacao }}{% endif %}</span>
+      <span class="block truncate text-xs text-muted">{{ mov.criado_em|date:"d/m/Y H:i" }}{% if mov.usuario %} · {{ mov.usuario.get_short_name }}{% endif %}</span>
+    </span>
+    <span class="text-sm tabular-nums text-muted">saldo {{ mov.saldo_apos }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="card p-6 text-center text-sm text-muted">Nenhuma movimentação ainda.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

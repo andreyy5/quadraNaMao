@@ -9,6 +9,7 @@ from apps.clientes.models import Cliente
 from apps.espacos.models import DiaSemana, Espaco
 from apps.espacos.services import save_price_rules, save_weekly_hours
 from apps.estabelecimentos.models import Estabelecimento
+from apps.estoque.models import MovimentacaoEstoque, Produto
 
 TZ = ZoneInfo("America/Sao_Paulo")
 # Uma terça-feira distante, para os testes não dependerem da data em que rodam.
@@ -39,6 +40,33 @@ def make_espaco(tenant, nome="Areia 1", abre=time(8), fecha=time(22), valor=Deci
 
 def make_cliente(tenant, nome="João Pereira", telefone="+5511987650001"):
     return Cliente.all_tenants.create(estabelecimento=tenant, nome=nome, telefone=telefone)
+
+
+def make_produto(
+    tenant, nome="Água", preco=Decimal("4"), estoque=10, minimo=0, custo=None, codigo="", ativo=True
+):
+    """Produto com saldo inicial. Com estoque=None, fica sem controle de estoque."""
+    produto = Produto.all_tenants.create(
+        estabelecimento=tenant,
+        nome=nome,
+        preco_venda=preco,
+        custo=custo,
+        codigo=codigo,
+        ativo=ativo,
+        controla_estoque=estoque is not None,
+        estoque_minimo=minimo,
+        estoque_atual=estoque or 0,
+    )
+    if estoque:
+        MovimentacaoEstoque.all_tenants.create(
+            estabelecimento=tenant,
+            produto=produto,
+            tipo=MovimentacaoEstoque.Tipo.ENTRADA,
+            origem=MovimentacaoEstoque.Origem.COMPRA,
+            quantidade=estoque,
+            saldo_apos=estoque,
+        )
+    return produto
 
 
 @pytest.fixture

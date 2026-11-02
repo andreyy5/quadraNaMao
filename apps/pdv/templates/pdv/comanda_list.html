@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Comandas · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% block content %}
+{% include "pdv/_tabs.html" %}
+
+{% if comandas %}
+<div class="stagger flex flex-col gap-3">
+  {% for comanda in comandas %}
+  <button class="card card-hover flex w-full items-center gap-3 p-4 text-left" type="button" data-theme="{{ comanda.reserva.espaco.tema }}" hx-get="{% url 'pdv:venda_detail' comanda.pk %}" hx-target="#modal-body">
+    <span class="avatar" aria-hidden="true">{{ comanda.cliente.nome|initials }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate font-medium">{{ comanda.cliente.nome }}</span>
+      <span class="block truncate text-sm text-muted">{{ comanda.reserva.espaco.nome }} · {{ comanda.reserva.inicio|date:"d/m" }} às {{ comanda.reserva.inicio|time:"H:i" }}</span>
+      <span class="mt-0.5 block truncate text-xs text-muted">{% for item in comanda.itens.all %}{{ item.quantidade }}x {{ item.produto.nome }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+    </span>
+    <span class="font-display text-lg font-semibold text-primary">{{ comanda.total|brl }}</span>
+  </button>
+  {% endfor %}
+</div>
+{% else %}
+{% url 'pdv:home' as pdv_url %}
+{% include "components/empty_state.html" with tema="quadra" title="Nenhuma comanda aberta" text="No PDV, escolha lançar na comanda da reserva para cobrar tudo no fim do jogo." url=pdv_url action="Abrir o PDV" %}
+{% endif %}
+{% endblock %}
