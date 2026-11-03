@@ -25,7 +25,7 @@ Consequências a lembrar:
 
 **Classes do Tailwind nos templates.** Duas armadilhas: classes montadas a partir de dados do banco (`badge-{{ status }}`) precisam entrar no `safelist`, e classes com valor arbitrário não podem ficar coladas em `{% if %}` (`{% if x %}md:max-h-[...]{% endif %}` não é gerada; com espaços, é).
 
-**Link do WhatsApp em vez de integração.** Os botões abrem uma conversa em `wa.me` e quem envia é o atendente. Não depende de aceite nem de API, que continuam para a Fase 5.
+**Dois jeitos de falar pelo WhatsApp.** Os botões de conversa abrem o `wa.me` e quem envia é o atendente, pelo próprio celular. As mensagens automáticas (Fase 5) saem pela Cloud API da Meta, só para quem aceitou, e ficam no histórico do sistema. O passo a passo da Meta está em [whatsapp.md](whatsapp.md).
 
 **Painel de reserva.** Quem clica em um horário livre vê só o horário em destaque e os dados do cliente; o resto abre em "Alterar" ou quando há erro de horário. A lista de horários livres (`free_starts`) e o aviso de conflito (`slot_problem`) só consultam: quem garante é a constraint ao gravar. Horários passados ficam fora da lista, mas continuam possíveis em "Outro horário", porque o painel permite passar o caderno a limpo.
 
@@ -37,7 +37,19 @@ Consequências a lembrar:
 
 **Financeiro (Fase 3).** Todo dinheiro passa por um `Lancamento` em um `Caixa` aberto. Lançamento não se edita nem se apaga: a correção é um estorno, que entra no caixa de quem estorna e aponta para o original. Faturamento é o que entrou por reservas, vendas e contas a receber, menos os estornos desses valores; dinheiro colocado ou retirado da gaveta é movimento de caixa, não faturamento.
 
-**Pagamento de reserva sem a Fase 2.** Para o fechamento bater com as reservas, o recebimento manual da reserva entrou agora: toda reserva gera uma `ContaReceber`, e o pagamento (inteiro ou parcial) baixa essa conta com um lançamento no caixa. O modelo `Pagamento` do planner fica para a Fase 2, quando o Pix trouxer pagamentos pendentes e identificador externo; até lá o lançamento já registra quem recebeu, quanto, como e quando. `Reserva.valor_pago` é uma cópia mantida pelo financeiro.
+**Pagamento de reserva.** Toda reserva gera uma `ContaReceber`, e o pagamento (inteiro ou parcial) baixa essa conta com um lançamento no caixa. `Reserva.valor_pago` é uma cópia mantida pelo financeiro. O modelo `Pagamento` (Fase 2) existe só para a cobrança Pix do link público: guarda o `txid`, o copia e cola, o prazo e o status, e aponta para o lançamento quando é pago. Recebimento no balcão continua sendo só o lançamento.
+
+**Pix com provedor plugável.** O provedor de cobrança Pix não foi escolhido (decisão em aberto no planner). O padrão é o Pix estático, gerado com a chave do estabelecimento no formato BR Code do Banco Central: funciona com qualquer banco, mas a equipe confirma o pagamento pelo botão Receber. Um provedor simulado prova o fluxo automático em desenvolvimento e nos testes, e o sistema se recusa a subir em produção com ele. As opções e o que falta para a confirmação automática estão em [integracoes.md](integracoes.md).
+
+**Caixa "Pix online".** Pagamento confirmado pelo provedor não tem operador. Ele entra num caixa do tipo online, um por estabelecimento, aberto sozinho na primeira confirmação, para o faturamento e os relatórios continuarem saindo dos lançamentos.
+
+**Expiração sem depender do agendador.** As pendentes vencidas são canceladas pela tarefa a cada 5 minutos e também ao abrir a agenda ou o link público. Assim o horário nunca fica preso se o Celery parar.
+
+**Mensalista vira reservas de verdade.** A regra semanal gera reservas comuns, 8 semanas à frente, renovadas por uma tarefa diária. A agenda, o conflito de horário e o financeiro tratam o jogo do mensalista como qualquer reserva. Semana que não pode ser reservada (outra reserva, bloqueio, espaço fechado) vira um aviso para o dono, em vez de falhar calada, e não é tentada de novo. Ao mudar horário, espaço, datas ou valor, os jogos futuros são cancelados e refeitos; os cancelados pela mudança saem do mensalista, para a semana ser refeita no horário novo, e um jogo que a equipe cancelou antes continua pulado.
+
+**WhatsApp assíncrono e idempotente.** O envio sai de uma tarefa do Celery depois que a transação confirma, para uma falha da Meta não desfazer a reserva. O webhook confere a assinatura `X-Hub-Signature-256` com o segredo do app, ignora mensagens repetidas pelo `wa_id` e não deixa um status atrasado ("entregue") desfazer um mais novo ("lida"). O estabelecimento é identificado pelo `phone_number_id` do aviso, que é único entre os estabelecimentos. Sem a Meta configurada, o provedor `console` só registra no histórico.
+
+**Limite de tentativas.** Login (5 por e-mail e IP, 30 por IP, a cada 15 minutos) e reservas pelo link público (10 por hora por IP) usam o cache do Django. Em produção com mais de um processo, o cache precisa ser compartilhado (`CACHE_URL` no Redis), e atrás de proxy reverso `NUM_PROXIES` diz quantos proxies são confiáveis no `X-Forwarded-For`.
 
 **Atraso calculado na hora.** Conta "atrasada" é a que está em aberto com o vencimento no passado, calculada a cada consulta, sem status gravado. Assim não depende de uma tarefa agendada para ficar certa.
 
@@ -49,13 +61,13 @@ Consequências a lembrar:
 
 **Estoque simplificado.** Quantidades inteiras, sem unidade de medida, lotes ou validade. O planner cita `unidade` em `Produto`; ficou de fora até um piloto precisar. Entrada por compra não gera `ContaPagar`, porque depende da Fase 3.
 
-**Apps adiados.** `whatsapp` e `agente` não foram criados, nem o Django REST Framework instalado, conforme a regra de não adiantar fases. O campo `Reserva.mensalista` entra na Fase 2. `Reserva.valor_pago` e `TabelaPreco.valor_sinal` já existem, mas ainda não têm uso.
+**Apps adiados.** `agente` (Fase 6) não foi criado, nem o Django REST Framework instalado, conforme a regra de não adiantar fases.
 
 ## Regras de negócio assumidas (validar com o piloto)
 
 Estas regras não estão definidas no planner:
 
-1. A reserva pelo painel nasce **confirmada**. O status pendente entra com o sinal, na Fase 2.
+1. A reserva pelo painel nasce **confirmada**. Só a reserva pelo link público, em horário com sinal, nasce **pendente**.
 2. Reserva **fora do horário de funcionamento** é recusada, sem exceção pelo painel.
 3. Reserva em **horário passado** é permitida, para o dono passar o caderno a limpo.
 4. Telefone é **obrigatório** para todo cliente, porque identifica a pessoa e será usado no WhatsApp. Cliente novo nasce sem aceite de WhatsApp registrado.
@@ -68,7 +80,7 @@ Estas regras não estão definidas no planner:
 11. Perfis: só o **dono** configura espaços, preços, estabelecimento e equipe. **Dono e gerente** cuidam do estoque. Todos usam a agenda e o PDV.
 12. A venda sem estoque é **recusada** por padrão. Em Ajustes, cada estabelecimento pode liberar a venda com saldo negativo. Perda também respeita essa opção; a contagem nunca é recusada, porque é o saldo real.
 13. O **preço vem sempre do cadastro**. Se ele mudar com o carrinho aberto, a venda é recusada para o total ser conferido. O item guarda o preço do momento da venda.
-14. **Comanda:** no máximo uma aberta por reserva. O estoque baixa ao lançar o consumo e o pagamento fica para o fechamento. Só cobre o consumo, porque o pagamento da própria reserva entra na Fase 2. Cancelar a reserva não mexe na comanda, que continua aberta até alguém receber ou cancelar.
+14. **Comanda:** no máximo uma aberta por reserva. O estoque baixa ao lançar o consumo e o pagamento fica para o fechamento, junto com o da reserva. Cancelar a reserva não mexe na comanda, que continua aberta até alguém receber ou cancelar.
 15. **Cancelamento:** devolve os itens ao estoque e mantém o registro. Comanda em aberto qualquer pessoa corrige ou cancela; venda já paga, só dono ou gerente. Não há estorno automático, já que o sistema ainda não movimenta dinheiro.
 16. **Sem desconto por venda** por enquanto.
 17. **Caixa por operador**, como no planner ("caixa próprio"): cada pessoa abre o seu, e o que ela recebe entra nele. Para receber qualquer coisa é preciso ter o caixa aberto; lançar consumo na comanda não precisa.
@@ -77,16 +89,25 @@ Estas regras não estão definidas no planner:
 20. **Reserva cancelada** cancela a conta dela, mas o que já foi recebido continua registrado: a devolução é um estorno feito por dono ou gerente. **Não compareceu** mantém a conta em aberto, e o dono decide se cobra.
 21. **Conta a pagar** pode sair do caixa (vira lançamento e reduz a gaveta) ou ser paga no banco (só dá baixa).
 22. Compra de estoque pode gerar uma **conta a pagar** com quantidade × custo.
+23. **Sinal:** o valor vem da faixa da tabela de preços em que a reserva começa. Sem chave Pix cadastrada, o link público não cobra sinal e a reserva nasce confirmada.
+24. **Prazo do sinal:** 30 minutos por padrão, configurável. Vencido, a reserva é cancelada, a conta dela também, e o cliente é avisado.
+25. **Um pedido pendente por cliente** no link público: com um Pix em aberto, o mesmo telefone não reserva outro horário até pagar ou o prazo vencer.
+26. Sinal recebido no balcão (parcial ou inteiro) que **alcança o valor do sinal** confirma a reserva pendente. Abaixo disso, ela continua pendente.
+27. **Pagamento atrasado** (chegou depois da expiração) não reabre o horário nem entra no caixa: fica marcado para a equipe resolver.
+28. **Política de cancelamento:** até X horas antes (24 por padrão), o sinal é devolvido; depois, fica com o estabelecimento. O sistema mostra a regra ao cancelar, mas a devolução é um estorno feito por dono ou gerente.
+29. **Link público:** mostra até 30 dias à frente, só horários futuros, livres e dentro do funcionamento, com a duração definida na faixa de preço do dia (uma hora se não houver). O cliente informa nome e telefone; se o telefone já existe, usa o cliente cadastrado.
+30. **Mensalista** pode ser cobrado **por jogo** (cada reserva tem o seu valor) ou **por mês** (uma conta a receber que se repete todo mês, no dia de vencimento escolhido entre 1 e 28, e as reservas ficam com valor zero). Encerrar cancela os jogos depois da data e para a repetição da conta; o histórico fica.
+31. **WhatsApp automático só para quem aceitou**, nunca sobre jogo que já começou, e sem confirmação para jogos de mensalista. "SAIR", "PARAR" ou "STOP" desligam o aceite na hora; "VOLTAR" religa. Resposta livre da equipe só nas 24 horas seguintes à última mensagem do cliente, como exige a Meta.
+32. O **aviso de bloqueio** pelo WhatsApp é disparado pela equipe na tela do bloqueio, e não sozinho, porque às vezes o dono prefere remarcar antes de avisar.
+33. Só o **dono** configura o link público, o Pix e o WhatsApp. Toda a equipe vê as conversas e responde.
 
 ## O que ainda não foi executado
 
 - **`Dockerfile` e `docker-compose.yml`:** escritos, mas não executados, porque a máquina de desenvolvimento não tem Docker.
-- **`.github/workflows/ci.yml`:** escrito, mas não executado, porque o repositório ainda não tem remoto.
-- **Celery com Redis:** configurado, sem tarefas ainda e sem Redis local. Em desenvolvimento roda em modo imediato.
+- **Celery com Redis:** sem Redis local. Em desenvolvimento as tarefas rodam no próprio processo e o agendador não roda; `manage.py rotinas` executa todas as rotinas uma vez.
+- **WhatsApp com a Meta:** o envio pela Cloud API foi testado com a API simulada nos testes automatizados, não contra a Meta, porque depende da conta e dos modelos aprovados ([whatsapp.md](whatsapp.md)).
 
 ## Pendências conhecidas
 
-- **Limite de tentativas de login:** o planner pede rate limiting em endpoints públicos. Precisa estar pronto antes de expor o sistema na internet.
+- **Confirmação automática do Pix:** depende de escolher o provedor de cobrança ([integracoes.md](integracoes.md)).
 - **Reset de senha por e-mail:** depende de escolher um provedor de e-mail. Por enquanto é feito pelo admin.
-- **Aviso aos clientes em bloqueios:** a tela lista as reservas afetadas e o telefone, mas o aviso é manual até a Fase 5.
-- **Política de cancelamento e expiração de pendentes:** entram com o sinal, na Fase 2.

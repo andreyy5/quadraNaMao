@@ -47,7 +47,18 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 - Grade do dia e da semana, com todos os espaços lado a lado e a hora atual sempre à vista.
 - Reserva em um clique a partir do horário livre, com a lista dos horários realmente livres e aviso de conflito antes de salvar.
 - Conflito de horário impedido pelo próprio banco de dados, inclusive com reservas feitas ao mesmo tempo.
-- Bloqueios (chuva, manutenção, evento) com a lista das reservas afetadas para remarcar.
+- Bloqueios (chuva, manutenção, evento) com a lista das reservas afetadas para remarcar e avisar.
+
+**Reserva online e mensalistas**
+- Link público para o cliente reservar sozinho pelo celular, sem login, vendo só os horários livres.
+- Sinal por Pix (QR Code e copia e cola): o horário fica reservado pelo prazo do pagamento e é liberado sozinho se o sinal não for pago.
+- Política de cancelamento com antecedência configurável.
+- Mensalistas com horário fixo semanal: as reservas são criadas sozinhas semanas à frente, com cobrança por jogo ou mensalidade, e as semanas sem vaga viram aviso para o dono.
+
+**WhatsApp**
+- Confirmação, lembrete antes do jogo, cancelamento e aviso de chuva ou manutenção, só para quem aceitou (LGPD).
+- Histórico de conversas com status de entrega e leitura, e resposta da equipe pelo próprio sistema.
+- Cliente sai da lista respondendo SAIR.
 
 **Clientes**
 - Cadastro automático na primeira reserva, busca por nome ou telefone e histórico.
@@ -146,8 +157,9 @@ Para preparar o `.env` à mão, copie o [.env.example](.env.example) e preencha 
 | `manage.py seed_demo --reset` | Apaga e recria a demonstração (gera uma senha nova). |
 | `manage.py seed_demo --produtos` | Só acrescenta produtos e vendas a uma demonstração antiga. |
 | `manage.py seed_demo --financeiro` | Só acrescenta contas e recebimentos de exemplo. |
+| `manage.py seed_demo --online` | Só liga o link público, o Pix, o WhatsApp (em modo de teste) e cria mensalistas numa demonstração antiga. |
 
-O comando só roda em desenvolvimento (`config.settings.dev`).
+O comando só roda em desenvolvimento (`config.settings.dev`). O link público da demonstração é http://127.0.0.1:8000/r/arena-demo/. Em desenvolvimento, a página do Pix tem um botão que simula o pagamento, e as mensagens de WhatsApp ficam só no histórico do sistema.
 
 ## Variáveis de ambiente
 
@@ -159,7 +171,18 @@ O comando só roda em desenvolvimento (`config.settings.dev`).
 | `ALLOWED_HOSTS` | em produção | Domínios aceitos, separados por vírgula. |
 | `CSRF_TRUSTED_ORIGINS` | em produção | Origens HTTPS confiáveis, separadas por vírgula. |
 | `CELERY_BROKER_URL` | em produção | Redis do Celery. |
+| `CACHE_URL` | em produção | Cache compartilhado do limite de tentativas, como `redis://localhost:6379/1`. Sem ele, cada processo conta separado. |
+| `NUM_PROXIES` | atrás de proxy | Quantos proxies reversos ficam na frente do Django (nginx, balanceador). Padrão `0`. |
+| `SITE_URL` | em produção | Endereço público do sistema, usado nos links mandados por WhatsApp. |
+| `PIX_PROVIDER` | não | `estatico` (padrão: a equipe confirma o Pix) ou `simulado` (só desenvolvimento). Veja [docs/integracoes.md](docs/integracoes.md). |
+| `WHATSAPP_PROVIDER` | não | `console` (padrão: só registra no histórico) ou `cloud` (Cloud API da Meta). |
+| `WHATSAPP_ACCESS_TOKEN` | com `cloud` | Token permanente do usuário do sistema na Meta. |
+| `WHATSAPP_APP_SECRET` | com `cloud` | Chave secreta do app da Meta, para conferir a assinatura do webhook. |
+| `WHATSAPP_VERIFY_TOKEN` | com `cloud` | Frase inventada por você e repetida no cadastro do webhook na Meta. |
+| `WHATSAPP_API_VERSION` | não | Versão da Graph API. Padrão `v21.0`. |
 | `POSTGRES_PASSWORD` | só no Docker | Senha do banco criado pelo `docker-compose`. |
+
+Como conseguir as chaves da Meta e cadastrar os modelos de mensagem: [docs/whatsapp.md](docs/whatsapp.md).
 
 O `.env` nunca vai para o repositório: o `.gitignore` já cuida disso.
 
@@ -206,7 +229,11 @@ Os testes criam um banco temporário no próprio PostgreSQL. As regras críticas
 | Conflito de horário e reservas simultâneas | `apps/agenda/tests/` |
 | Venda, comanda e concorrência no estoque | `apps/pdv/tests/` |
 | Caixa, fechamento, estornos e contas | `apps/financeiro/tests/` |
-| Isolamento entre estabelecimentos | `apps/estabelecimentos/tests/test_isolation.py`, `apps/pdv/tests/` e `apps/financeiro/tests/` |
+| Link público, Pix, expiração do sinal e pagamento atrasado | `apps/agenda/tests/test_online.py` |
+| Mensalistas, avisos e mensalidade | `apps/agenda/tests/test_mensalistas.py` |
+| WhatsApp: aceite, webhook assinado, status, SAIR, janela de 24 horas | `apps/whatsapp/tests/` |
+| Limite de tentativas no login | `apps/contas/tests/` e `apps/estabelecimentos/tests/test_ratelimit.py` |
+| Isolamento entre estabelecimentos | `apps/estabelecimentos/tests/test_isolation.py` e os testes de cada app |
 
 O GitHub Actions roda lint, formatação, checagem de migrações e testes a cada push e pull request. Para rodar ruff e black antes de cada commit:
 
@@ -233,16 +260,17 @@ apps/
   estabelecimentos/     tenant, TenantModel, middleware e mixins das views
   espacos/              espaços, horários de funcionamento e tabela de preços
   clientes/             clientes, busca e anonimização (LGPD)
-  agenda/               reservas, bloqueios, auditoria e grade de horários
+  agenda/               reservas, bloqueios, mensalistas, link público e grade de horários
   estoque/              produtos, movimentações e estoque mínimo
   pdv/                  vendas, comanda na reserva e cancelamento
-  financeiro/           caixa, lançamentos e contas a receber e a pagar
+  financeiro/           caixa, lançamentos, contas a receber e a pagar e Pix
+  whatsapp/             mensagens, modelos, webhook da Meta e conversas
   relatorios/           tela Hoje e relatórios
 templates/              layout base e componentes compartilhados
 assets/css/app.css      fonte do CSS (compilado em static/css/app.css)
 static/js/app.js        comportamento da interface (HTMX e Alpine)
 scripts/                criação do banco local e cópia das bibliotecas de front-end
-docs/                   decisões técnicas e capturas de tela
+docs/                   decisões técnicas, guias do WhatsApp e do Pix e capturas de tela
 ```
 
 ## Roadmap
@@ -251,10 +279,10 @@ docs/                   decisões técnicas e capturas de tela
 |---|---|---|
 | 0 | Fundação: autenticação, multi-tenant, layout e CI | Pronta |
 | 1 | Cadastros e agenda | Pronta |
-| 2 | Mensalistas, sinal com Pix e link público de reserva | Parcial: recebimento manual de reservas |
+| 2 | Mensalistas, sinal com Pix e link público de reserva | Pronta. Confirmação automática do Pix depende de escolher o provedor |
 | 3 | Financeiro: caixa, contas e relatórios | Pronta |
 | 4 | PDV e estoque | Pronta |
-| 5 | WhatsApp: lembretes e confirmações automáticas | Planejada |
+| 5 | WhatsApp: lembretes e confirmações automáticas | Pronta. Envio real depende de configurar a conta na Meta |
 | 6 | Agente de IA para reservas pelo WhatsApp | Planejada |
 | 7 | Lista de espera, cupons, planos e app | Planejada |
 
@@ -272,14 +300,21 @@ O `Dockerfile` e o `docker-compose.yml` ainda não foram executados de ponta a p
 
 ### Tarefas agendadas
 
-As contas que se repetem são criadas por uma tarefa diária do Celery. Em produção, rode o worker e o agendador:
+| Rotina | Frequência |
+|---|---|
+| Expirar reservas com sinal vencido | a cada 5 minutos |
+| Lembretes pelo WhatsApp | a cada 10 minutos |
+| Reservas das próximas semanas dos mensalistas | diária |
+| Contas que se repetem | diária |
+
+Em produção, rode o worker (que também manda as mensagens de WhatsApp) e o agendador:
 
 ```bash
 celery -A config worker -l info
 celery -A config beat -l info
 ```
 
-Sem o agendador, as telas de contas e a tela Hoje criam as repetições ao serem abertas.
+Sem Celery, agende `manage.py rotinas` no cron a cada 5 minutos; ele roda todas as rotinas uma vez. Como garantia, a agenda e o link público expiram os sinais vencidos ao serem abertos, e as telas de contas e a tela Hoje criam as repetições.
 
 ### Backup
 
@@ -292,9 +327,11 @@ Em produção, agende o `pg_dump` diariamente e guarde as cópias fora do servid
 
 ### Antes de expor na internet
 
-- Limite de tentativas de login (rate limiting), ainda pendente.
 - `DJANGO_SETTINGS_MODULE=config.settings.prod`, `SECRET_KEY` própria e `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` preenchidos.
 - HTTPS e backup diário configurados.
+- `CACHE_URL` apontando para o Redis e `NUM_PROXIES` de acordo com o proxy, para o limite de tentativas valer.
+- `SITE_URL` com o endereço público, para os links do WhatsApp funcionarem.
+- Worker e agendador do Celery rodando (ou o cron do `manage.py rotinas`).
 
 ## Contribuindo
 
