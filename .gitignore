@@ -1,28 +1,63 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-.pytest_cache/
-.ruff_cache/
-.coverage
-htmlcov/
+# =============================================================================
+# QuadraNaMão! — arquivos que não vão para o repositório
+# =============================================================================
 
-# Segredos
+# --- Segredos e configuração local ------------------------------------------
+# O .env tem a SECRET_KEY e a senha do banco. Só o modelo entra no repositório.
 .env
 .env.*
 !.env.example
 
-# Django
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Ferramentas de teste e qualidade
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Django -----------------------------------------------------------------
+# Gerados pelo collectstatic e por uploads de usuários.
 staticfiles/
 media/
+*.log
+logs/
 
-# Front-end (gerados por npm run build)
+# --- Banco de dados ---------------------------------------------------------
+# Backups gerados pelo pg_dump (ver README) e bancos locais nunca são versionados:
+# podem conter dados de clientes.
+*.dump
+*.sql
+*.sql.gz
+*.sqlite3
+
+# --- Celery -----------------------------------------------------------------
+celerybeat-schedule*
+celerybeat.pid
+
+# --- Front-end --------------------------------------------------------------
+# O CSS final e as bibliotecas são gerados por `npm run build`.
 node_modules/
 static/css/app.css
 static/vendor/
+npm-debug.log*
 
-# Editor e sistema
+# --- Ferramentas pessoais ---------------------------------------------------
+.claude/settings.local.json
+
+# --- Editores e sistema operacional -----------------------------------------
 .vscode/
 .idea/
+*.swp
 .DS_Store
 Thumbs.db
+desktop.ini
