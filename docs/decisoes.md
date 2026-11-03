@@ -33,13 +33,23 @@ Consequências a lembrar:
 
 **Admin restrito.** O admin do Django cobre apenas `Usuario` e `Estabelecimento`, porque o superusuário não tem tenant e os dados de negócio são operados no painel.
 
-**PDV antes do financeiro.** O PDV e o estoque entraram antes da Fase 3 a pedido do Andrey. Como `Caixa` e `Lancamento` ainda não existem, a venda guarda a forma de pagamento e o valor recebido, mas não entra em um caixa. Quando a Fase 3 chegar, `Venda` ganha o campo `caixa` e a conclusão da venda passa a gerar o lançamento, em `pdv/services.py`.
+**PDV antes do financeiro.** O PDV e o estoque entraram antes da Fase 3 a pedido do Andrey. As vendas feitas antes da Fase 3 ficaram sem caixa e sem lançamento: aparecem nas vendas do dia, mas não nos fechamentos nem nos relatórios.
+
+**Financeiro (Fase 3).** Todo dinheiro passa por um `Lancamento` em um `Caixa` aberto. Lançamento não se edita nem se apaga: a correção é um estorno, que entra no caixa de quem estorna e aponta para o original. Faturamento é o que entrou por reservas, vendas e contas a receber, menos os estornos desses valores; dinheiro colocado ou retirado da gaveta é movimento de caixa, não faturamento.
+
+**Pagamento de reserva sem a Fase 2.** Para o fechamento bater com as reservas, o recebimento manual da reserva entrou agora: toda reserva gera uma `ContaReceber`, e o pagamento (inteiro ou parcial) baixa essa conta com um lançamento no caixa. O modelo `Pagamento` do planner fica para a Fase 2, quando o Pix trouxer pagamentos pendentes e identificador externo; até lá o lançamento já registra quem recebeu, quanto, como e quando. `Reserva.valor_pago` é uma cópia mantida pelo financeiro.
+
+**Atraso calculado na hora.** Conta "atrasada" é a que está em aberto com o vencimento no passado, calculada a cada consulta, sem status gravado. Assim não depende de uma tarefa agendada para ficar certa.
+
+**Recorrência.** A conta original guarda a repetição e as próximas são criadas até 31 dias à frente, sempre a partir da data original (dia 31 volta a ser 31 depois de fevereiro). Quem cria é uma tarefa diária do Celery e, como garantia, as telas de contas e a tela Hoje; a criação não duplica.
+
+**Cor dos gráficos.** O ciano dos botões é claro demais para área de dados e reprovou no validador de paleta no modo escuro. Os gráficos usam o token `chart` (`#0e9eb8` no escuro, `#006c9e` no claro), que passa nas checagens de faixa de claridade e contraste.
 
 **Saldo de estoque.** `Produto.estoque_atual` é uma cópia do saldo para consulta rápida e só muda em `estoque/services.py`, sempre com uma `MovimentacaoEstoque`. Os locks seguem uma ordem fixa (estabelecimento, venda, produtos por `pk`), para vendas simultâneas não venderem o mesmo item nem se bloquearem.
 
 **Estoque simplificado.** Quantidades inteiras, sem unidade de medida, lotes ou validade. O planner cita `unidade` em `Produto`; ficou de fora até um piloto precisar. Entrada por compra não gera `ContaPagar`, porque depende da Fase 3.
 
-**Apps adiados.** `financeiro`, `whatsapp` e `agente` não foram criados, nem o Django REST Framework instalado, conforme a regra de não adiantar fases. O campo `Reserva.mensalista` entra na Fase 2. `Reserva.valor_pago` e `TabelaPreco.valor_sinal` já existem, mas ainda não têm uso.
+**Apps adiados.** `whatsapp` e `agente` não foram criados, nem o Django REST Framework instalado, conforme a regra de não adiantar fases. O campo `Reserva.mensalista` entra na Fase 2. `Reserva.valor_pago` e `TabelaPreco.valor_sinal` já existem, mas ainda não têm uso.
 
 ## Regras de negócio assumidas (validar com o piloto)
 
@@ -61,6 +71,12 @@ Estas regras não estão definidas no planner:
 14. **Comanda:** no máximo uma aberta por reserva. O estoque baixa ao lançar o consumo e o pagamento fica para o fechamento. Só cobre o consumo, porque o pagamento da própria reserva entra na Fase 2. Cancelar a reserva não mexe na comanda, que continua aberta até alguém receber ou cancelar.
 15. **Cancelamento:** devolve os itens ao estoque e mantém o registro. Comanda em aberto qualquer pessoa corrige ou cancela; venda já paga, só dono ou gerente. Não há estorno automático, já que o sistema ainda não movimenta dinheiro.
 16. **Sem desconto por venda** por enquanto.
+17. **Caixa por operador**, como no planner ("caixa próprio"): cada pessoa abre o seu, e o que ela recebe entra nele. Para receber qualquer coisa é preciso ter o caixa aberto; lançar consumo na comanda não precisa.
+18. **Fechamento às cegas para o atendente:** ele conta o dinheiro sem ver o valor esperado. Dono e gerente veem o esperado e a diferença, e podem fechar o caixa de outra pessoa.
+19. Só **dinheiro** entra na conferência da gaveta. Pix e cartão aparecem no resumo do fechamento, para conferir com o extrato.
+20. **Reserva cancelada** cancela a conta dela, mas o que já foi recebido continua registrado: a devolução é um estorno feito por dono ou gerente. **Não compareceu** mantém a conta em aberto, e o dono decide se cobra.
+21. **Conta a pagar** pode sair do caixa (vira lançamento e reduz a gaveta) ou ser paga no banco (só dá baixa).
+22. Compra de estoque pode gerar uma **conta a pagar** com quantidade × custo.
 
 ## O que ainda não foi executado
 

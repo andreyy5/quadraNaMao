@@ -2,7 +2,7 @@
 
 Sistema de agendamento e gestão para quadras e campos esportivos. Substitui o caderno e o controle pelo WhatsApp.
 
-**Estado atual:** Fases 0 e 1 do [planner](PLANNER.md), mais o PDV e o estoque da Fase 4, sem o caixa da Fase 3. Login e perfis, multi-tenant, espaços, horários, preços, clientes, agenda visual, bloqueios, PDV com comanda na reserva e estoque.
+**Estado atual:** Fases 0, 1, 3 e 4 do [planner](PLANNER.md), com o recebimento manual de reservas da Fase 2. Login e perfis, multi-tenant, espaços, horários, preços, clientes, agenda visual, bloqueios, PDV com comanda na reserva, estoque, caixa, contas a receber e a pagar e relatórios.
 
 ## Stack
 
@@ -26,7 +26,7 @@ npm run build
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Abra http://127.0.0.1:8000. O `seed_demo` mostra no terminal os acessos do dono e do atendente de demonstração. Para recriar esses dados, use `seed_demo --reset`. Para só acrescentar produtos e vendas a uma demonstração criada antes do PDV, use `seed_demo --produtos`.
+Abra http://127.0.0.1:8000. O `seed_demo` mostra no terminal os acessos do dono e do atendente de demonstração. Para recriar esses dados, use `seed_demo --reset`. Para só acrescentar produtos e vendas a uma demonstração criada antes do PDV, use `seed_demo --produtos`; para acrescentar contas e recebimentos de exemplo, `seed_demo --financeiro`.
 
 No Linux ou macOS, troque `.\.venv\Scripts\python.exe` por `.venv/bin/python`. Durante o desenvolvimento do CSS, deixe `npm run dev` rodando.
 
@@ -52,6 +52,17 @@ Em `/admin/`, crie o estabelecimento e depois um usuário com perfil **Dono** vi
 
 Defina `SECRET_KEY` e `POSTGRES_PASSWORD` no `.env` e rode `docker compose up --build`. Esses arquivos ainda não foram executados de ponta a ponta (ver [decisões](docs/decisoes.md)).
 
+### Tarefas agendadas
+
+As contas que se repetem são criadas por uma tarefa diária do Celery. Em produção, rode o worker e o agendador:
+
+```bash
+celery -A config worker -l info
+celery -A config beat -l info
+```
+
+Sem o agendador, as telas de contas e a tela Hoje criam as repetições ao serem abertas.
+
 ## Testes e qualidade
 
 ```powershell
@@ -60,7 +71,7 @@ Defina `SECRET_KEY` e `POSTGRES_PASSWORD` no `.env` e rode `docker compose up --
 .\.venv\Scripts\black.exe --check .
 ```
 
-Os testes usam um banco temporário criado no próprio PostgreSQL. As regras críticas têm cobertura específica: conflito de horário e concorrência em `apps/agenda/tests/`, venda, comanda e concorrência de estoque em `apps/pdv/tests/`, e isolamento entre estabelecimentos em `apps/estabelecimentos/tests/test_isolation.py` e `apps/pdv/tests/`.
+Os testes usam um banco temporário criado no próprio PostgreSQL. As regras críticas têm cobertura específica: conflito de horário e concorrência em `apps/agenda/tests/`, venda, comanda e concorrência de estoque em `apps/pdv/tests/`, caixa, fechamento e contas em `apps/financeiro/tests/`, e isolamento entre estabelecimentos em `apps/estabelecimentos/tests/test_isolation.py` e `apps/pdv/tests/`.
 
 ## Variáveis de ambiente
 
@@ -85,6 +96,7 @@ apps/
   clientes/          clientes, busca, anonimização (LGPD)
   agenda/            reservas, bloqueios, auditoria e grade de horários
   estoque/           produtos, movimentações e estoque mínimo
+  financeiro/        caixa, lançamentos, contas a receber e a pagar
   pdv/               vendas, comanda na reserva e cancelamento
   relatorios/        tela "Hoje"
 templates/           layout base e componentes
