@@ -7,8 +7,22 @@ from .models import DiaSemana, Espaco
 TIME_WIDGET = {"type": "time", "step": "900"}
 
 
+class MoneyField(forms.DecimalField):
+    """Valor em reais. Aceita "1.500,00", "1500,00", "1500.00" e "R$ 1.500"."""
+
+    def to_python(self, value):
+        if isinstance(value, str):
+            text = value.replace("R$", "").replace(" ", "").strip()
+            if "," in text:
+                text = text.replace(".", "").replace(",", ".")
+            elif text.count(".") > 1 or (text.count(".") == 1 and len(text.split(".")[1]) == 3):
+                text = text.replace(".", "")
+            value = text
+        return super().to_python(value)
+
+
 def money_field(**kwargs):
-    return forms.DecimalField(
+    return MoneyField(
         max_digits=9,
         decimal_places=2,
         min_value=0,

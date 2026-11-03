@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Relatórios · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-4xl{% endblock %}
+
+{% block content %}
+{% include "financeiro/_tabs.html" %}
+
+<div class="mb-4">
+  <h1>Relatórios</h1>
+  <p class="text-sm text-muted">{{ first|date:"d/m/Y" }} a {{ last|date:"d/m/Y" }}</p>
+</div>
+
+<form method="get" class="mb-5 flex flex-wrap items-end gap-2" aria-label="Período">
+  {% for value, label in presets %}
+  <a class="chip" aria-pressed="{% if preset == value %}true{% else %}false{% endif %}" href="?periodo={{ value }}">{{ label }}</a>
+  {% endfor %}
+  <div class="ml-auto flex flex-wrap items-center gap-2">
+    <label class="sr-only" for="rel-de">De</label>
+    <input id="rel-de" class="input min-h-10 w-40" type="date" name="de" value="{{ first|date:'Y-m-d' }}">
+    <label class="sr-only" for="rel-ate">Até</label>
+    <input id="rel-ate" class="input min-h-10 w-40" type="date" name="ate" value="{{ last|date:'Y-m-d' }}">
+    <button class="btn-secondary min-h-10" type="submit">Ver</button>
+  </div>
+</form>
+
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="stat"><dt class="text-sm text-muted">Faturamento</dt><dd class="stat-value">{{ report.faturamento|brl }}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Contas pagas</dt><dd class="stat-value">{{ report.despesas|brl }}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Resultado</dt><dd class="stat-value">{{ report.resultado|brl }}</dd></div>
+  <div class="stat"><dt class="text-sm text-muted">Em atraso</dt><dd class="stat-value {% if report.inadimplencia %}text-warning{% endif %}">{{ report.inadimplencia|brl }}</dd></div>
+</dl>
+
+<section class="card mb-6 p-4" aria-labelledby="fat-dia">
+  <div class="mb-3 flex items-baseline justify-between gap-3">
+    <h2 id="fat-dia">Faturamento por dia</h2>
+    {% if report.peak %}<span class="text-xs tabular-nums text-muted">Melhor dia: {{ report.peak|brl }}</span>{% endif %}
+  </div>
+  {% if report.peak %}
+  <div class="bars" role="img" aria-label="Faturamento por dia. Os valores estão na tabela logo abaixo.">
+    {% for point in report.series %}
+    <div class="bars-col" tabindex="0">
+      <span class="bars-tip">{{ point.day|date:"d/m" }}: {{ point.total|brl }}</span>
+      <span class="bars-fill" style="height:{{ point.height }}%"></span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-1 flex justify-between text-[11px] tabular-nums text-muted" aria-hidden="true"><span>{{ first|date:"d/m" }}</span><span>{{ last|date:"d/m" }}</span></div>
+  <details class="mt-3 text-sm">
+    <summary class="cursor-pointer text-muted transition-colors hover:text-text">Ver como tabela</summary>
+    <table class="data-table mt-2 w-full">
+      <thead><tr><th scope="col">Dia</th><th scope="col">Faturamento</th></tr></thead>
+      <tbody>{% for point in report.series %}{% if point.total %}<tr><td>{{ point.day|date:"d/m/Y" }}</td><td>{{ point.total|brl }}</td></tr>{% endif %}{% endfor %}</tbody>
+    </table>
+  </details>
+  {% else %}
+  <p class="py-8 text-center text-sm text-muted">Nada recebido neste período.</p>
+  {% endif %}
+</section>
+
+<div class="mb-6 grid gap-4 sm:grid-cols-2">
+  <section class="card p-4" aria-labelledby="por-forma">
+    <h2 id="por-forma" class="mb-3">Por forma de pagamento</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_forma %}
+  </section>
+  <section class="card p-4" aria-labelledby="por-espaco">
+    <h2 id="por-espaco" class="mb-3">Reservas por espaço</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_espaco %}
+  </section>
+  <section class="card p-4" aria-labelledby="por-origem">
+    <h2 id="por-origem" class="mb-3">De onde veio</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_origem %}
+  </section>
+  <section class="card p-4" aria-labelledby="ocupacao">
+    <h2 id="ocupacao" class="mb-3">Ocupação</h2>
+    {% if report.ocupacao %}
+    <ul class="flex flex-col gap-2.5">
+      {% for row in report.ocupacao %}
+      <li>
+        <div class="mb-1 flex justify-between gap-3 text-sm"><span class="truncate">{{ row.espaco.nome }}</span><span class="font-medium tabular-nums">{{ row.occupancy }}%</span></div>
+        <div class="hbar" aria-hidden="true"><span style="width:{{ row.occupancy }}%"></span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-muted">Nenhum espaço ativo.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section aria-labelledby="inadimplencia">
+  <div class="mb-2 flex items-center justify-between gap-2">
+    <h2 id="inadimplencia">Inadimplência{% if report.atrasadas_count %} ({{ report.atrasadas_count }}){% endif %}</h2>
+    {% if report.atrasadas_count %}<a class="link-action" href="{% url 'financeiro:receber' %}?filtro=atrasadas">Ver todas</a>{% endif %}
+  </div>
+  {% if report.atrasadas %}
+  <ul class="card divide overflow-hidden">
+    {% for conta in report.atrasadas %}
+    <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+      <span class="w-12 shrink-0 font-semibold tabular-nums text-warning">{{ conta.vencimento|date:"d/m" }}</span>
+      <span class="min-w-0 flex-1 truncate">{% if conta.cliente %}{{ conta.cliente.nome }} · {% endif %}{{ conta.descricao }}</span>
+      <span class="font-medium tabular-nums">{{ conta.saldo|brl }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="card p-6 text-center text-sm text-muted">Ninguém em atraso.</p>
+  {% endif %}
+</section>
+{% endblock %}

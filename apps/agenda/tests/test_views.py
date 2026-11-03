@@ -192,15 +192,26 @@ def test_block_form_starts_with_nothing_selected(owner_client, espaco):
     assert not form.initial.get("dia_todo")
 
 
-def test_dashboard_has_no_query_per_reservation(owner_client, espaco, cliente, django_assert_max_num_queries):
+def test_dashboard_has_no_query_per_reservation(owner_client, espaco, cliente):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
     today = timezone.localdate()
     rows = [{"dia_semana": dia, "aberto": True, "abre": time(0), "fecha": time(0)} for dia in range(7)]
     save_weekly_hours(espaco, rows)
-    for hour in range(6, 12):
-        start = datetime.combine(today, time(hour), tzinfo=timezone.get_current_timezone())
-        services.create_reservation(espaco, cliente, start, start + timedelta(hours=1))
-    with django_assert_max_num_queries(20):
-        owner_client.get(reverse("relatorios:dashboard"))
+
+    def queries_with(hours):
+        for hour in hours:
+            start = datetime.combine(today, time(hour), tzinfo=timezone.get_current_timezone())
+            services.create_reservation(espaco, cliente, start, start + timedelta(hours=1))
+        with CaptureQueriesContext(connection) as captured:
+            owner_client.get(reverse("relatorios:dashboard"))
+        return len(captured)
+
+    one = queries_with([6])
+    six = queries_with(range(7, 12))
+    assert six == one
+    assert one < 40
 
 
 def test_block_form_requires_time_when_not_all_day(owner_client, espaco):

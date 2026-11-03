@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Caixas · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% block content %}
+{% include "financeiro/_tabs.html" %}
+
+{% if caixas %}
+<div class="card divide overflow-hidden">
+  {% for caixa in caixas %}
+  <a class="row-link" href="{% url 'financeiro:caixa_detail' caixa.pk %}">
+    <span class="avatar" aria-hidden="true">{{ caixa.operador.nome|initials }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate font-medium">{{ caixa.operador.get_short_name }}</span>
+      <span class="block truncate text-sm text-muted">{{ caixa.criado_em|date:"d/m/Y" }} · {{ caixa.criado_em|time:"H:i" }}{% if caixa.fechado_em %}–{{ caixa.fechado_em|time:"H:i" }}{% endif %}</span>
+    </span>
+    {% if caixa.is_open %}<span class="badge badge-concluida">Aberto</span>
+    {% elif caixa.diferenca %}<span class="badge badge-pendente tabular-nums">Diferença {{ caixa.diferenca|brl }}</span>
+    {% else %}<span class="badge badge-cancelada">Conferido</span>{% endif %}
+    <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="mt-4 flex items-center justify-between" aria-label="Paginação">
+  {% if page_obj.has_previous %}<a class="btn-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% else %}<span></span>{% endif %}
+  <span class="text-sm text-muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn-secondary" href="?page={{ page_obj.next_page_number }}">Próxima</a>{% else %}<span></span>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<p class="card p-8 text-center text-muted">Nenhum caixa aberto até agora.</p>
+{% endif %}
+{% endblock %}

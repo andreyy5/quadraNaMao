@@ -11,7 +11,7 @@
 <button type="button" class="slot slot-reserved {% if not cell.reserva.is_open %}is-done{% endif %} {% if cell.has_block %}has-block{% endif %} {% if cell.is_compact %}items-center gap-2{% else %}flex-col gap-0.5{% endif %}" style="top:{{ cell.top }}px;height:{{ cell.height }}px"
         hx-get="{% url 'agenda:reserva_detail' cell.reserva.pk %}" hx-target="#modal-body"
         aria-label="Reserva de {{ cell.reserva.cliente.nome }} às {{ cell.inicio|time:'H:i' }}, {{ cell.reserva.get_status_display }}">
-  <span class="w-full truncate text-[13px] font-medium">{{ cell.reserva.cliente.nome }}</span>
+  <span class="flex w-full items-center gap-1 truncate text-[13px] font-medium"><span class="truncate">{{ cell.reserva.cliente.nome }}</span>{% if cell.reserva.is_paid %}<span class="shrink-0 text-success [&_svg]:h-3.5 [&_svg]:w-3.5" title="Reserva paga">{% include "components/icon.html" with name="check" %}</span><span class="sr-only">paga</span>{% endif %}</span>
   <span class="shrink-0 tabular-nums opacity-80">{{ cell.reserva.inicio|time:"H:i" }}–{{ cell.reserva.fim|time:"H:i" }}</span>
   {% if cell.has_block %}<span class="mt-auto flex items-center gap-1 text-warning">Em bloqueio</span>{% elif not cell.is_compact and cell.reserva.status != "CONFIRMADA" %}<span class="mt-auto">{{ cell.reserva.get_status_display }}</span>{% endif %}
 </button>

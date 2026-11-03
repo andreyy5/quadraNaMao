@@ -8,6 +8,7 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Upd
 
 from apps.contas.mixins import ManagerRequiredMixin
 from apps.estabelecimentos.mixins import ModalResponseMixin, TenantCreateMixin
+from apps.financeiro.services import create_purchase_bill
 
 from . import services
 from .forms import MovimentacaoForm, ProdutoForm
@@ -109,8 +110,19 @@ class MovimentarView(ManagerRequiredMixin, ModalResponseMixin, FormView):
         kwargs = {"usuario": self.request.user, "observacao": data["observacao"]}
         try:
             if data["tipo"] == MovimentacaoForm.ENTRADA:
-                services.register_entry(self.produto, data["quantidade"], custo=data["custo"], **kwargs)
-                message = f"Entrada registrada: {data['quantidade']} de {self.produto.nome}."
+                with transaction.atomic():
+                    services.register_entry(self.produto, data["quantidade"], custo=data["custo"], **kwargs)
+                    message = f"Entrada registrada: {data['quantidade']} de {self.produto.nome}."
+                    if data["gerar_conta"]:
+                        create_purchase_bill(
+                            self.produto,
+                            data["quantidade"],
+                            data["custo"],
+                            data["vencimento"],
+                            data["fornecedor"],
+                            self.request.user,
+                        )
+                        message += " A conta foi lançada em contas a pagar."
             elif data["tipo"] == MovimentacaoForm.PERDA:
                 services.register_loss(self.produto, data["quantidade"], **kwargs)
                 message = f"Perda registrada: {data['quantidade']} de {self.produto.nome}."

@@ -11,7 +11,9 @@ def brl(value):
     """Formata como moeda brasileira: 1200.5 vira R$ 1.200,50."""
     if value is None or value == "":
         return "—"
-    return f"R$ {number_format(Decimal(value), decimal_pos=2, force_grouping=True)}"
+    value = Decimal(value)
+    sinal = "-" if value < 0 else ""
+    return f"{sinal}R$ {number_format(abs(value), decimal_pos=2, force_grouping=True)}"
 
 
 @register.filter

@@ -1,0 +1,24 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Pagar conta" %}
+  <div class="sheet-body">
+    <div class="ticket">
+      <div class="min-w-0">
+        <p class="ticket-time">{{ conta.valor|brl }}</p>
+        <p class="mt-0.5 truncate text-sm text-muted">{{ conta.descricao }}{% if conta.fornecedor %} · {{ conta.fornecedor }}{% endif %} · vence {{ conta.vencimento|date:"d/m" }}</p>
+      </div>
+    </div>
+    {% include "components/form_errors.html" %}
+    {% include "financeiro/_forma_options.html" with field=form.forma %}
+    {% if caixa %}
+    {% include "components/checkbox.html" with field=form.do_caixa %}
+    {% else %}
+    <p class="help">Seu caixa está fechado, então a conta baixa sem mexer no caixa. Se o dinheiro saiu da gaveta, abra o caixa antes.</p>
+    {% endif %}
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">Confirmar pagamento</button>
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

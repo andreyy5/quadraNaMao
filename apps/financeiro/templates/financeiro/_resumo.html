@@ -1,0 +1,26 @@
+{% load ui %}
+<section class="card p-4" aria-label="Resumo do caixa">
+  <div class="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+    <div>
+      <p class="eyebrow mb-1.5">O que passou pelo caixa</p>
+      <dl class="flex flex-col gap-1">
+        <div class="flex justify-between gap-3"><dt class="text-muted">Reservas</dt><dd class="font-medium tabular-nums">{{ summary.reservas|brl }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-muted">Vendas</dt><dd class="font-medium tabular-nums">{{ summary.vendas|brl }}</dd></div>
+        {% if summary.contas_receber %}<div class="flex justify-between gap-3"><dt class="text-muted">Contas recebidas</dt><dd class="font-medium tabular-nums">{{ summary.contas_receber|brl }}</dd></div>{% endif %}
+        {% if summary.contas_pagar %}<div class="flex justify-between gap-3"><dt class="text-muted">Contas pagas</dt><dd class="font-medium tabular-nums">{{ summary.contas_pagar|brl }}</dd></div>{% endif %}
+        {% if summary.suprimentos %}<div class="flex justify-between gap-3"><dt class="text-muted">Dinheiro colocado</dt><dd class="font-medium tabular-nums">{{ summary.suprimentos|brl }}</dd></div>{% endif %}
+        {% if summary.retiradas %}<div class="flex justify-between gap-3"><dt class="text-muted">Dinheiro retirado</dt><dd class="font-medium tabular-nums">{{ summary.retiradas|brl }}</dd></div>{% endif %}
+      </dl>
+    </div>
+    <div class="mt-3 sm:mt-0">
+      <p class="eyebrow mb-1.5">Por forma de pagamento</p>
+      <dl class="flex flex-col gap-1">
+        {% for row in summary.por_forma %}
+        <div class="flex justify-between gap-3"><dt class="text-muted">{{ row.label }}</dt><dd class="font-medium tabular-nums">{{ row.total|brl }}</dd></div>
+        {% empty %}
+        <div class="text-muted">Nenhum movimento ainda.</div>
+        {% endfor %}
+      </dl>
+    </div>
+  </div>
+</section>

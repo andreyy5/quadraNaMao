@@ -69,6 +69,22 @@ def make_produto(
     return produto
 
 
+def with_register(usuario):
+    """Abre o caixa do usuário, se ainda não estiver aberto, e devolve o usuário."""
+    from apps.financeiro.services import current_register, open_register
+
+    if current_register(usuario) is None:
+        open_register(usuario)
+    return usuario
+
+
+def cashier(tenant):
+    """Um atendente com caixa aberto, para os testes que só precisam registrar um pagamento."""
+    email = f"caixa@{tenant.slug}.test"
+    usuario = get_user_model().objects.filter(email=email).first() or make_user(tenant, email, "ATENDENTE")
+    return with_register(usuario)
+
+
 @pytest.fixture
 def tenant(db):
     return make_tenant("arena-a")

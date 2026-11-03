@@ -1,0 +1,13 @@
+<fieldset>
+  <legend class="label">{{ field.label }}</legend>
+  <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+    {% for option in field %}
+    <label class="pay-option">
+      {{ option.tag }}
+      {% include "components/icon.html" with name=option.data.value|lower %}
+      <span>{{ option.choice_label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+</fieldset>

@@ -1,0 +1,17 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  <div class="flex flex-col items-center px-6 pb-2 pt-7 text-center">
+    <span class="danger-mark">{% include "components/icon.html" with name="alert" %}</span>
+    <h2 class="mt-4 text-lg">Estornar {{ lancamento.valor|brl }}?</h2>
+    <p class="mt-1 text-sm text-muted">{{ lancamento.descricao|default:lancamento.get_origem_display }}. O valor contrário entra no <strong class="font-medium text-text">seu caixa aberto</strong> e o lançamento original fica no histórico.</p>
+    <div class="mt-4 w-full text-left">
+      {% include "components/form_errors.html" %}
+      {% include "components/field.html" with field=form.motivo %}
+    </div>
+  </div>
+  <div class="flex gap-2 p-5">
+    <button class="btn-ghost flex-1" type="button" data-close-modal>Manter</button>
+    <button class="btn-danger flex-1" type="submit">Sim, estornar</button>
+  </div>
+</form>

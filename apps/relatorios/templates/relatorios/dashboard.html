@@ -88,6 +88,20 @@
 </section>
 {% endif %}
 
+{% if bills %}
+<section class="mb-6" aria-labelledby="financeiro-hoje">
+  <div class="mb-2 flex items-center justify-between gap-2">
+    <h2 id="financeiro-hoje">Contas</h2>
+    <a class="link-action" href="{% url 'relatorios:relatorio' %}">Ver relatórios</a>
+  </div>
+  <div class="grid gap-3 sm:grid-cols-3">
+    <a class="stat card-hover block" href="{% url 'financeiro:pagar' %}?filtro=atrasadas"><span class="block text-sm text-muted">A pagar em atraso</span><span class="stat-value block {% if bills.overdue.count %}text-warning{% endif %}">{{ bills.overdue.total|brl }}</span></a>
+    <a class="stat card-hover block" href="{% url 'financeiro:pagar' %}"><span class="block text-sm text-muted">A pagar em 7 dias</span><span class="stat-value block">{{ bills.next_days.total|add:bills.today.total|brl }}</span></a>
+    <a class="stat card-hover block" href="{% url 'financeiro:receber' %}?filtro=atrasadas"><span class="block text-sm text-muted">A receber em atraso</span><span class="stat-value block {% if receivables.overdue.count %}text-warning{% endif %}">{{ receivables.overdue.total|brl }}</span></a>
+  </div>
+</section>
+{% endif %}
+
 {% if has_products %}
 <section class="mb-6" aria-labelledby="vendas-hoje">
   <div class="mb-2 flex items-center justify-between gap-2">

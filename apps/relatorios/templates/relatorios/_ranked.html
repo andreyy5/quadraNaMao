@@ -1,0 +1,13 @@
+{% load ui %}
+{% if rows %}
+<ul class="flex flex-col gap-2.5">
+  {% for row in rows %}
+  <li>
+    <div class="mb-1 flex justify-between gap-3 text-sm"><span class="truncate">{{ row.label }}</span><span class="font-medium tabular-nums">{{ row.total|brl }}</span></div>
+    <div class="hbar" aria-hidden="true"><span style="width:{{ row.share }}%"></span></div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-sm text-muted">Nada neste período.</p>
+{% endif %}

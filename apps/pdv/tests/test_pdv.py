@@ -12,9 +12,24 @@ from apps.estoque.models import MovimentacaoEstoque, Produto
 from apps.estoque.services import InsufficientStock
 from apps.pdv import services
 from apps.pdv.models import ItemVenda, Venda
-from conftest import HX, at, make_cliente, make_espaco, make_produto, make_tenant, make_user
+from conftest import (
+    HX,
+    at,
+    cashier,
+    make_cliente,
+    make_espaco,
+    make_produto,
+    make_tenant,
+    make_user,
+    with_register,
+)
 
 PIX = Venda.Forma.PIX
+
+
+def sell(tenant, items, forma=PIX, usuario=None, **kwargs):
+    usuario = with_register(usuario) if usuario else cashier(tenant)
+    return services.complete_sale(tenant, items, forma, usuario=usuario, **kwargs)
 
 
 def stock(produto):
@@ -34,7 +49,7 @@ def test_sale_lowers_stock_and_uses_the_registered_price(tenant, owner):
     agua = make_produto(tenant, nome="Água", preco=Decimal("4"), estoque=10)
     refri = make_produto(tenant, nome="Refri", preco=Decimal("6.50"), estoque=5)
 
-    venda = services.complete_sale(tenant, {agua.pk: 2, refri.pk: 1}, PIX, usuario=owner)
+    venda = sell(tenant, {agua.pk: 2, refri.pk: 1}, PIX, usuario=owner)
 
     assert venda.status == Venda.Status.CONCLUIDA
     assert venda.total == Decimal("14.50")
@@ -48,7 +63,7 @@ def test_sale_lowers_stock_and_uses_the_registered_price(tenant, owner):
 
 def test_item_keeps_the_price_of_the_moment_of_sale(tenant):
     agua = make_produto(tenant, preco=Decimal("4"))
-    venda = services.complete_sale(tenant, {agua.pk: 1}, PIX)
+    venda = sell(tenant, {agua.pk: 1}, PIX)
     Produto.all_tenants.filter(pk=agua.pk).update(preco_venda=Decimal("9"))
     assert items_of(venda)[0].preco_unitario == Decimal("4")
 
@@ -58,7 +73,7 @@ def test_sale_without_enough_stock_saves_nothing(tenant):
     refri = make_produto(tenant, nome="Refri", estoque=1)
 
     with pytest.raises(InsufficientStock):
-        services.complete_sale(tenant, {agua.pk: 2, refri.pk: 3}, PIX)
+        sell(tenant, {agua.pk: 2, refri.pk: 3}, PIX)
 
     assert stock(agua) == 10
     assert stock(refri) == 1
@@ -70,46 +85,46 @@ def test_sale_goes_through_when_negative_stock_is_allowed(tenant):
     tenant.permite_estoque_negativo = True
     tenant.save()
     agua = make_produto(tenant, estoque=1)
-    services.complete_sale(tenant, {agua.pk: 3}, PIX)
+    sell(tenant, {agua.pk: 3}, PIX)
     assert stock(agua) == -2
 
 
 def test_unstocked_product_sells_without_movement(tenant):
     bola = make_produto(tenant, nome="Aluguel de bola", estoque=None)
-    services.complete_sale(tenant, {bola.pk: 2}, PIX)
+    sell(tenant, {bola.pk: 2}, PIX)
     assert stock(bola) == 0
     assert not MovimentacaoEstoque.all_tenants.filter(produto=bola).exists()
 
 
 def test_empty_cart_and_unavailable_product_are_rejected(tenant, other_tenant):
     with pytest.raises(services.EmptyCart):
-        services.complete_sale(tenant, {}, PIX)
+        sell(tenant, {}, PIX)
     inativo = make_produto(tenant, nome="Inativo", ativo=False)
     with pytest.raises(services.ProductUnavailable):
-        services.complete_sale(tenant, {inativo.pk: 1}, PIX)
+        sell(tenant, {inativo.pk: 1}, PIX)
     alheio = make_produto(other_tenant, nome="Alheio")
     with pytest.raises(services.ProductUnavailable):
-        services.complete_sale(tenant, {alheio.pk: 1}, PIX)
+        sell(tenant, {alheio.pk: 1}, PIX)
     assert stock(alheio) == 10
 
 
 def test_absurd_quantity_is_rejected(tenant):
     bola = make_produto(tenant, nome="Aluguel", estoque=None)
     with pytest.raises(services.InvalidCartQuantity):
-        services.complete_sale(tenant, {bola.pk: 10**12}, PIX)
+        sell(tenant, {bola.pk: 10**12}, PIX)
     assert not Venda.all_tenants.exists()
 
 
 def test_changed_price_is_not_charged_silently(tenant):
     agua = make_produto(tenant, preco=Decimal("4"))
     with pytest.raises(services.PriceChanged):
-        services.complete_sale(tenant, {agua.pk: 1}, PIX, total_esperado=Decimal("3.50"))
-    assert services.complete_sale(tenant, {agua.pk: 1}, PIX, total_esperado=Decimal("4.00")).pk
+        sell(tenant, {agua.pk: 1}, PIX, total_esperado=Decimal("3.50"))
+    assert sell(tenant, {agua.pk: 1}, PIX, total_esperado=Decimal("4.00")).pk
 
 
 def test_cash_records_the_change(tenant):
     agua = make_produto(tenant, preco=Decimal("4"))
-    venda = services.complete_sale(tenant, {agua.pk: 1}, Venda.Forma.DINHEIRO, recebido=Decimal("10"))
+    venda = sell(tenant, {agua.pk: 1}, Venda.Forma.DINHEIRO, recebido=Decimal("10"))
     assert venda.valor_recebido == Decimal("10")
     assert venda.troco == Decimal("6")
 
@@ -117,7 +132,7 @@ def test_cash_records_the_change(tenant):
 def test_cash_below_the_total_cancels_everything(tenant):
     agua = make_produto(tenant, preco=Decimal("4"))
     with pytest.raises(services.InsufficientPayment):
-        services.complete_sale(tenant, {agua.pk: 1}, Venda.Forma.DINHEIRO, recebido=Decimal("1"))
+        sell(tenant, {agua.pk: 1}, Venda.Forma.DINHEIRO, recebido=Decimal("1"))
     assert stock(agua) == 10
     assert not Venda.all_tenants.exists()
 
@@ -125,9 +140,9 @@ def test_cash_below_the_total_cancels_everything(tenant):
 def test_numbers_are_sequential_per_establishment(tenant, other_tenant):
     agua = make_produto(tenant)
     outra = make_produto(other_tenant)
-    assert services.complete_sale(tenant, {agua.pk: 1}, PIX).numero == 1
-    assert services.complete_sale(tenant, {agua.pk: 1}, PIX).numero == 2
-    assert services.complete_sale(other_tenant, {outra.pk: 1}, PIX).numero == 1
+    assert sell(tenant, {agua.pk: 1}, PIX).numero == 1
+    assert sell(tenant, {agua.pk: 1}, PIX).numero == 2
+    assert sell(other_tenant, {outra.pk: 1}, PIX).numero == 1
 
 
 def test_tab_lowers_stock_now_and_is_paid_later(tenant, reserva):
@@ -138,12 +153,12 @@ def test_tab_lowers_stock_now_and_is_paid_later(tenant, reserva):
     assert venda.concluida_em is None
     assert stock(agua) == 8
 
-    venda = services.close_tab(venda, PIX)
+    venda = services.close_tab(venda, PIX, cashier(tenant))
     assert venda.status == Venda.Status.CONCLUIDA
     assert venda.forma_pagamento == PIX
     assert venda.concluida_em is not None
     with pytest.raises(services.SaleClosed):
-        services.close_tab(venda, PIX)
+        services.close_tab(venda, PIX, cashier(tenant))
 
 
 def test_new_consumption_goes_to_the_same_tab(tenant, reserva):
@@ -204,9 +219,9 @@ def test_removing_the_last_item_cancels_the_tab(tenant, reserva):
 def test_cancel_returns_stock_and_keeps_the_record(tenant, owner):
     agua = make_produto(tenant)
     bola = make_produto(tenant, nome="Aluguel", estoque=None)
-    venda = services.complete_sale(tenant, {agua.pk: 3, bola.pk: 1}, PIX)
+    venda = sell(tenant, {agua.pk: 3, bola.pk: 1}, PIX)
 
-    venda = services.cancel_sale(venda, usuario=owner, motivo="Cobrado errado")
+    venda = services.cancel_sale(venda, usuario=with_register(owner), motivo="Cobrado errado")
 
     assert stock(agua) == 10
     assert venda.status == Venda.Status.CANCELADA
@@ -220,10 +235,10 @@ def test_cancel_returns_stock_and_keeps_the_record(tenant, owner):
 
 def test_day_summary_counts_only_paid_sales_and_reports_open_tabs(tenant, reserva):
     agua = make_produto(tenant, preco=Decimal("4"))
-    services.complete_sale(tenant, {agua.pk: 1}, PIX)
-    services.complete_sale(tenant, {agua.pk: 2}, Venda.Forma.DINHEIRO)
-    cancelada = services.complete_sale(tenant, {agua.pk: 1}, PIX)
-    services.cancel_sale(cancelada)
+    sell(tenant, {agua.pk: 1}, PIX)
+    sell(tenant, {agua.pk: 2}, Venda.Forma.DINHEIRO)
+    cancelada = sell(tenant, {agua.pk: 1}, PIX)
+    services.cancel_sale(cancelada, usuario=cashier(tenant))
     services.add_to_tab(tenant, reserva, {agua.pk: 5})
 
     summary = services.day_summary(tenant, timezone.localdate())
@@ -242,6 +257,7 @@ def test_day_summary_counts_only_paid_sales_and_reports_open_tabs(tenant, reserv
 def test_concurrent_sales_do_not_oversell():
     tenant = make_tenant("concorrencia-pdv")
     produto = make_produto(tenant, estoque=3)
+    usuario = cashier(tenant)
     attempts = 8
     barrier = threading.Barrier(attempts)
     results = []
@@ -249,7 +265,7 @@ def test_concurrent_sales_do_not_oversell():
     def attempt():
         try:
             barrier.wait()
-            services.complete_sale(tenant, {produto.pk: 1}, PIX)
+            services.complete_sale(tenant, {produto.pk: 1}, PIX, usuario=usuario)
             results.append("ok")
         except InsufficientStock:
             results.append("sem estoque")
@@ -273,8 +289,15 @@ def test_concurrent_sales_do_not_oversell():
 
 
 def checkout(client, produto, quantidade=1, **extra):
+    with_register(client_user(client))
     data = {"produto": [produto.pk], "quantidade": [quantidade], "forma": "PIX", **extra}
     return client.post(reverse("pdv:finalizar"), data, headers=HX)
+
+
+def client_user(client):
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.get(pk=client.session["_auth_user_id"])
 
 
 def triggers(response):
@@ -369,11 +392,15 @@ def test_tab_flow_through_the_screens(owner_client, tenant, reserva):
     agua = make_produto(tenant, nome="Água", preco=Decimal("4"))
     venda = services.add_to_tab(tenant, reserva, {agua.pk: 2})
     assert "Água" in owner_client.get(reverse("pdv:comandas")).content.decode()
+    detail = owner_client.get(reverse("pdv:venda_detail", args=[venda.pk]), headers=HX).content.decode()
+    assert "abra o seu caixa" in detail
+    with_register(client_user(owner_client))
     assert (
         "Receber"
         in owner_client.get(reverse("pdv:venda_detail", args=[venda.pk]), headers=HX).content.decode()
     )
 
+    with_register(client_user(owner_client))
     response = owner_client.post(reverse("pdv:receber", args=[venda.pk]), {"forma": "PIX"}, headers=HX)
 
     assert response.status_code == 204
@@ -384,7 +411,7 @@ def test_tab_flow_through_the_screens(owner_client, tenant, reserva):
 
 def test_sales_page_shows_the_day(owner_client, tenant):
     agua = make_produto(tenant, nome="Água", preco=Decimal("4"))
-    services.complete_sale(tenant, {agua.pk: 2}, PIX)
+    sell(tenant, {agua.pk: 2}, PIX)
     response = owner_client.get(reverse("pdv:vendas"))
     assert len(response.context["vendas"]) == 1
     assert response.context["summary"]["total"] == Decimal("8")
@@ -394,8 +421,9 @@ def test_sales_page_shows_the_day(owner_client, tenant):
 
 def test_manager_cancels_a_paid_sale(owner_client, tenant):
     agua = make_produto(tenant)
-    venda = services.complete_sale(tenant, {agua.pk: 1}, PIX)
+    venda = sell(tenant, {agua.pk: 1}, PIX)
     url = reverse("pdv:cancelar", args=[venda.pk])
+    with_register(client_user(owner_client))
     assert owner_client.post(url, {"motivo": "Teste"}, headers=HX).status_code == 204
     assert stock(agua) == 10
 
@@ -423,7 +451,7 @@ def test_tenant_isolation_on_all_screens(owner_client, tenant, other_tenant):
     espaco = make_espaco(other_tenant, "Quadra alheia")
     cliente = make_cliente(other_tenant, "Cliente Alheio", "+5511977770000")
     reserva_alheia = agenda_services.create_reservation(espaco, cliente, at(10), at(11))
-    venda = services.complete_sale(other_tenant, {alheio.pk: 1}, PIX, usuario=outro_dono)
+    venda = sell(other_tenant, {alheio.pk: 1}, PIX, usuario=outro_dono)
     comanda = services.add_to_tab(other_tenant, reserva_alheia, {alheio.pk: 1})
     item = items_of(comanda)[0]
 

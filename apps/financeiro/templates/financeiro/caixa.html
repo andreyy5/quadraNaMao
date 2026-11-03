@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Caixa · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% block content %}
+{% include "financeiro/_tabs.html" %}
+
+{% if caixa %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1>Meu caixa</h1>
+    <p class="flex items-center gap-2 text-sm text-muted"><span class="live-dot" aria-hidden="true"></span> Aberto {% if caixa.is_from_another_day %}em {{ caixa.criado_em|date:"d/m" }} {% endif %}às {{ caixa.criado_em|time:"H:i" }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <button class="btn-secondary" type="button" hx-get="{% url 'financeiro:movimento' %}" hx-target="#modal-body">Colocar ou tirar dinheiro</button>
+    <button class="btn-primary" type="button" hx-get="{% url 'financeiro:fechar' caixa.pk %}" hx-target="#modal-body">Fechar caixa</button>
+  </div>
+</div>
+
+{% if caixa.is_from_another_day %}
+<p class="form-alert mb-4">Este caixa foi aberto em outro dia. Feche-o para o movimento de hoje não se misturar.</p>
+{% endif %}
+
+<dl class="stagger mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+  <div class="stat"><dt class="text-sm text-muted">Recebido</dt><dd class="stat-value">{{ summary.recebido|brl }}</dd></div>
+  {% if request.user.is_manager %}
+  <div class="stat"><dt class="text-sm text-muted">Dinheiro na gaveta</dt><dd class="stat-value">{{ summary.dinheiro_esperado|brl }}</dd></div>
+  {% endif %}
+  <div class="stat"><dt class="text-sm text-muted">Troco inicial</dt><dd class="stat-value">{{ caixa.saldo_inicial|brl }}</dd></div>
+</dl>
+
+{% include "financeiro/_resumo.html" %}
+{% include "financeiro/_lancamentos.html" %}
+
+{% else %}
+<div class="neon-panel flex flex-col items-center px-6 py-10 text-center">
+  <span class="product-icon h-14 w-14 [&_svg]:h-7 [&_svg]:w-7">{% include "components/icon.html" with name="dinheiro" %}</span>
+  <h1 class="mt-4">Seu caixa está fechado</h1>
+  <p class="mt-1 max-w-sm text-sm text-muted">Abra para receber reservas e vendas. No fim do turno, você confere o dinheiro e fecha.</p>
+  <button class="btn-primary mt-6" type="button" hx-get="{% url 'financeiro:abrir' %}" hx-target="#modal-body">Abrir caixa</button>
+</div>
+{% if ultimo %}
+<a class="row-link card mt-4 rounded-2xl" href="{% url 'financeiro:caixa_detail' ultimo.pk %}">
+  <span class="min-w-0 flex-1 text-sm"><span class="block font-medium">Último fechamento</span><span class="block text-muted">{{ ultimo.fechado_em|date:"d/m" }} às {{ ultimo.fechado_em|time:"H:i" }}</span></span>
+  <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
+</a>
+{% endif %}
+{% endif %}
+{% endblock %}

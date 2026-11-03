@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta{% else %}Nova conta{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "financeiro/_tabs.html" %}
+<h1 class="mb-5">{% if conta %}Editar conta{% elif is_receivable %}Nova conta a receber{% else %}Nova conta a pagar{% endif %}</h1>
+
+<form method="post" class="form-card">
+  {% csrf_token %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.descricao %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% if is_receivable %}{% include "components/field.html" with field=form.cliente %}{% else %}{% include "components/field.html" with field=form.fornecedor %}{% endif %}
+      {% include "components/field.html" with field=form.categoria %}
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      {% include "components/field.html" with field=form.valor prefix="R$" %}
+      {% include "components/field.html" with field=form.vencimento %}
+    </div>
+    {% if form.recorrencia %}
+    <fieldset>
+      <legend class="label">{{ form.recorrencia.label|capfirst }}</legend>
+      <div class="flex flex-wrap gap-2">
+        {% for option in form.recorrencia %}<label class="chip">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+      </div>
+      <p class="help">As próximas aparecem sozinhas, um mês antes de vencer.</p>
+    </fieldset>
+    {% endif %}
+    {% include "components/field.html" with field=form.observacoes %}
+  </div>
+  <div class="form-card-foot">
+    <button class="btn-primary" type="submit">{% if conta %}Salvar alterações{% else %}Cadastrar conta{% endif %}</button>
+    <a class="btn-ghost" href="{{ list_url }}">Voltar</a>
+  </div>
+</form>
+{% endblock %}

@@ -719,6 +719,54 @@
       },
     }));
 
+    /* Painel de recebimento: soma o que está sendo cobrado e calcula o troco. */
+    Alpine.data("receiveForm", (data) => ({
+      forma: "",
+      valor: "",
+      recebido: "",
+      comandaCents: Math.round(Number(data.comanda || 0) * 100),
+      incluirComanda: Boolean(data.comanda),
+      init() {
+        this.form = this.$el;
+        this.refresh();
+      },
+      refresh() {
+        const value = (selector) => this.form.querySelector(selector);
+        const forma = value('[name="forma"]:checked');
+        this.forma = forma ? forma.value : "";
+        this.valor = value('[name="valor"]').value;
+        this.recebido = value('[name="recebido"]').value;
+        const comanda = value('[name="incluir_comanda"]');
+        this.incluirComanda = Boolean(comanda && comanda.checked);
+      },
+      get totalCents() {
+        return parseMoney(this.valor) + (this.incluirComanda ? this.comandaCents : 0);
+      },
+      get recebidoCents() {
+        return this.forma === "DINHEIRO" ? parseMoney(this.recebido) : 0;
+      },
+      get recebidoShort() {
+        return this.recebidoCents > 0 && this.recebidoCents < this.totalCents;
+      },
+      get change() {
+        return this.recebidoCents > this.totalCents ? this.recebidoCents - this.totalCents : 0;
+      },
+      money: formatMoney,
+    }));
+
+    /* Fechamento: dono e gerente veem a diferença enquanto digitam. */
+    Alpine.data("closeRegister", (data) => ({
+      esperado: data.esperado ? parseMoney(data.esperado) : 0,
+      contado: "",
+      refresh() {
+        this.contado = this.$root.querySelector('[name="saldo_conferido"]').value;
+      },
+      get diferenca() {
+        return parseMoney(this.contado) - this.esperado;
+      },
+      money: formatMoney,
+    }));
+
     Alpine.data("dayPresets", () => ({
       apply(values) {
         this.$root.querySelectorAll('[name="dias"]').forEach((box) => {

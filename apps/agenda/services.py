@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from apps.espacos.models import Espaco
 from apps.espacos.services import load_schedule, load_schedules
+from apps.financeiro.services import sync_reservation_account
 
 from .models import CONFLICT_CONSTRAINT, Bloqueio, Reserva, ReservaEvento
 
@@ -332,6 +333,7 @@ def create_reservation(
                 raise ReservationConflict from exc
             raise
         _record(reserva, ReservaEvento.Acao.CRIADA, usuario)
+        sync_reservation_account(reserva)
     return reserva
 
 
@@ -362,12 +364,24 @@ def update_reservation(reserva, espaco, cliente, inicio, fim, valor_total, obser
         reserva.observacoes = observacoes
         try:
             with transaction.atomic():
-                reserva.save()
+                # Sem `valor_pago`: quem cuida dele é o financeiro, e esta cópia pode estar velha.
+                reserva.save(
+                    update_fields=[
+                        "espaco",
+                        "cliente",
+                        "inicio",
+                        "fim",
+                        "valor_total",
+                        "observacoes",
+                        "atualizado_em",
+                    ]
+                )
         except IntegrityError as exc:
             if _is_conflict(exc):
                 raise ReservationConflict from exc
             raise
         _record(reserva, ReservaEvento.Acao.ALTERADA, usuario, detalhes)
+        sync_reservation_account(reserva)
     return reserva
 
 
@@ -379,6 +393,7 @@ def _change_status(reserva, status, acao, usuario, detalhes=""):
         current.status = status
         current.save(update_fields=["status", "atualizado_em"])
         _record(current, acao, usuario, detalhes)
+        sync_reservation_account(current)
     reserva.status = status
     return reserva
 
@@ -485,6 +500,35 @@ def day_summary(estabelecimento, day):
         "free_slots": free_slots,
         "timelines": [_day_timeline(column, now) for column in agenda.columns],
     }
+
+
+def occupancy_by_space(estabelecimento, first, last):
+    """Ocupação de cada espaço no período, em % das horas abertas."""
+    espacos = list(
+        Espaco.all_tenants.filter(estabelecimento=estabelecimento, ativo=True).select_related(
+            "estabelecimento"
+        )
+    )
+    if not espacos:
+        return []
+    days = [first + timedelta(days=offset) for offset in range((last - first).days + 1)]
+    grid = _build_grid([(espaco, day) for espaco in espacos for day in days], estabelecimento.timezone)
+    busy = Counter()
+    available = Counter()
+    for column in grid.columns:
+        for cell in column.cells:
+            if cell.kind in ("reserved", "free"):
+                available[column.espaco.pk] += cell.minutes
+            if cell.kind == "reserved":
+                busy[column.espaco.pk] += cell.minutes
+    rows = [
+        {
+            "espaco": espaco,
+            "occupancy": round(busy[espaco.pk] * 100 / available[espaco.pk]) if available[espaco.pk] else 0,
+        }
+        for espaco in espacos
+    ]
+    return sorted(rows, key=lambda row: row["occupancy"], reverse=True)
 
 
 def week_strip(estabelecimento, day):

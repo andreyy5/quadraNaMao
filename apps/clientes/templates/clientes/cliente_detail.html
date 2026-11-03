@@ -29,10 +29,11 @@
 
 {% if cliente.observacoes %}<p class="card mb-5 whitespace-pre-line p-4 text-sm">{{ cliente.observacoes }}</p>{% endif %}
 
-<dl class="stagger mb-5 grid grid-cols-3 gap-3">
+<dl class="stagger mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
   <div class="stat"><dd class="stat-value mt-0">{{ resumo.total }}</dd><dt class="text-xs text-muted">Reservas</dt></div>
   <div class="stat"><dd class="stat-value mt-0">{{ resumo.faltas }}</dd><dt class="text-xs text-muted">Faltas</dt></div>
   <div class="stat"><dd class="stat-value mt-0">{{ resumo.canceladas }}</dd><dt class="text-xs text-muted">Cancelamentos</dt></div>
+  <div class="stat"><dd class="stat-value mt-0 {% if em_aberto %}text-warning{% endif %}">{{ em_aberto|brl }}</dd><dt class="text-xs text-muted">Em aberto</dt></div>
 </dl>
 
 <h2 class="mb-2">Histórico</h2>

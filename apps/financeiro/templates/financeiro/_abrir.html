@@ -1,0 +1,12 @@
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Abrir caixa" %}
+  <div class="sheet-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/field.html" with field=form.saldo_inicial prefix="R$" %}
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">Abrir caixa</button>
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

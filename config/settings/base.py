@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "apps.espacos",
     "apps.clientes",
     "apps.agenda",
+    "apps.financeiro",
     "apps.estoque",
     "apps.pdv",
     "apps.relatorios",
@@ -57,6 +58,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.estabelecimentos.context_processors.product",
+                "apps.financeiro.context_processors.open_register",
             ],
         },
     },
@@ -90,3 +92,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_ALWAYS_EAGER = False
+CELERY_BEAT_SCHEDULE = {
+    "gerar-contas-recorrentes": {
+        "task": "apps.financeiro.tasks.generate_all_recurring_accounts",
+        "schedule": 60 * 60 * 24,
+    },
+}

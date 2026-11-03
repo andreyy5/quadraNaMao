@@ -73,11 +73,23 @@ class MovimentacaoForm(StyledFormMixin, forms.Form):
         label="Observação",
         max_length=200,
         required=False,
-        widget=forms.TextInput(attrs={"placeholder": "Ex.: fornecedor, garrafa quebrada"}),
+        widget=forms.TextInput(attrs={"placeholder": "Ex.: nota 123, garrafa quebrada"}),
+    )
+    gerar_conta = forms.BooleanField(label="Lançar em contas a pagar", required=False)
+    fornecedor = forms.CharField(label="Fornecedor", max_length=120, required=False)
+    vencimento = forms.DateField(
+        label="Vencimento",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
 
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("tipo") != self.CONTAGEM and cleaned.get("quantidade") == 0:
             self.add_error("quantidade", "Informe uma quantidade maior que zero.")
+        if cleaned.get("tipo") == self.ENTRADA and cleaned.get("gerar_conta"):
+            if not cleaned.get("custo"):
+                self.add_error("custo", "Informe o custo para calcular o valor da conta.")
+            if not cleaned.get("vencimento"):
+                self.add_error("vencimento", "Informe quando a conta vence.")
         return cleaned

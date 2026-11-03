@@ -18,6 +18,8 @@ from apps.espacos.services import save_price_rules, save_weekly_hours
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estoque.models import MovimentacaoEstoque, Produto
 from apps.estoque.services import register_entry
+from apps.financeiro.models import Caixa, ContaPagar, ContaReceber, Lancamento
+from apps.financeiro.services import current_register, open_register, receive_account
 from apps.pdv.models import Venda
 from apps.pdv.services import add_to_tab, complete_sale
 
@@ -61,6 +63,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Só acrescenta produtos e vendas a uma demonstração já criada, sem mexer no resto.",
         )
+        parser.add_argument(
+            "--financeiro",
+            action="store_true",
+            help="Só acrescenta contas e recebimentos de exemplo a uma demonstração já criada.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -68,6 +75,15 @@ class Command(BaseCommand):
             raise CommandError("O seed_demo só pode rodar em desenvolvimento.")
 
         existing = Estabelecimento.objects.filter(slug=SLUG).first()
+        if options["financeiro"]:
+            if not existing:
+                raise CommandError("A demonstração ainda não existe. Rode o seed_demo sem opções.")
+            if ContaPagar.all_tenants.filter(estabelecimento=existing).exists():
+                raise CommandError("A demonstração já tem contas.")
+            owner = get_user_model().objects.filter(estabelecimento=existing, papel="DONO").first()
+            self._seed_finance(existing, owner)
+            self.stdout.write(self.style.SUCCESS("Contas e recebimentos de demonstração criados."))
+            return
         if options["produtos"]:
             if not existing:
                 raise CommandError("A demonstração ainda não existe. Rode o seed_demo sem opções.")
@@ -138,13 +154,62 @@ class Command(BaseCommand):
         create_block(espacos[1], rain, rain + timedelta(hours=3), "CHUVA", "Previsão de chuva forte", owner)
 
         self._seed_sales(tenant, owner)
+        self._seed_finance(tenant, owner)
 
         self.stdout.write(self.style.SUCCESS("Demonstração criada."))
         self.stdout.write("  Dono:      dono@demo.local")
         self.stdout.write("  Atendente: atendente@demo.local")
         self.stdout.write(f"  Senha:     {password}")
 
+    def _register(self, owner):
+        return current_register(owner) or open_register(owner, Decimal("100"))
+
+    def _seed_finance(self, tenant, owner):
+        self._register(owner)
+        today = timezone.now().astimezone(tenant.timezone).date()
+        contas = [
+            (
+                "Aluguel do ponto",
+                "ALUGUEL",
+                "2500.00",
+                today.replace(day=10),
+                "MENSAL",
+                "Imobiliária Central",
+            ),
+            ("Energia", "ENERGIA", "640.00", today + timedelta(days=3), "MENSAL", "Distribuidora de energia"),
+            ("Internet", "INTERNET", "120.00", today + timedelta(days=12), "MENSAL", "Provedor"),
+            ("Areia nova para as quadras", "MANUTENCAO", "900.00", today - timedelta(days=4), "NENHUMA", ""),
+        ]
+        for descricao, categoria, valor, vencimento, recorrencia, fornecedor in contas:
+            ContaPagar.all_tenants.create(
+                estabelecimento=tenant,
+                descricao=descricao,
+                categoria=categoria,
+                valor=Decimal(valor),
+                vencimento=vencimento,
+                recorrencia=recorrencia,
+                fornecedor=fornecedor,
+                criado_por=owner,
+            )
+        ContaReceber.all_tenants.create(
+            estabelecimento=tenant,
+            descricao="Aluguel da quadra para evento",
+            categoria="EVENTO",
+            valor=Decimal("400.00"),
+            vencimento=today - timedelta(days=2),
+            criado_por=owner,
+        )
+        # Algumas reservas de hoje já pagas, uma delas só com o sinal.
+        contas_hoje = ContaReceber.all_tenants.filter(
+            estabelecimento=tenant, reserva__isnull=False, vencimento=today, status="ABERTA"
+        ).order_by("reserva__inicio")
+        for index, conta in enumerate(contas_hoje[:3]):
+            valor = conta.saldo if index < 2 else (conta.saldo / 2).quantize(Decimal("0.01"))
+            if valor > 0:
+                receive_account(conta, valor, "PIX" if index % 2 == 0 else "DINHEIRO", owner)
+
     def _seed_sales(self, tenant, owner):
+        self._register(owner)
         produtos = {}
         for nome, categoria, preco, custo, estoque, minimo in PRODUTOS:
             produto = Produto.all_tenants.create(
@@ -178,7 +243,13 @@ class Command(BaseCommand):
             add_to_tab(tenant, reserva, {produtos["Cerveja long neck"]: 4}, usuario=owner)
 
     def _delete(self, tenant):
+        # Lançamento primeiro: ele protege a venda, a reserva e as contas a que se refere.
+        Lancamento.all_tenants.filter(estabelecimento=tenant, estorno_de__isnull=False).delete()
+        Lancamento.all_tenants.filter(estabelecimento=tenant).delete()
+        ContaReceber.all_tenants.filter(estabelecimento=tenant).delete()
+        ContaPagar.all_tenants.filter(estabelecimento=tenant).delete()
         Venda.all_tenants.filter(estabelecimento=tenant).delete()
+        Caixa.all_tenants.filter(estabelecimento=tenant).delete()
         MovimentacaoEstoque.all_tenants.filter(estabelecimento=tenant).delete()
         Produto.all_tenants.filter(estabelecimento=tenant).delete()
         Reserva.all_tenants.filter(estabelecimento=tenant).delete()

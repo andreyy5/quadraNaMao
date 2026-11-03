@@ -1,0 +1,21 @@
+{% load ui %}
+<h2 class="mb-2 mt-6">Lançamentos</h2>
+{% if lancamentos %}
+<ul class="card divide overflow-hidden">
+  {% for lancamento in lancamentos %}
+  <li class="flex items-center gap-3 px-4 py-2.5">
+    <span class="w-12 shrink-0 text-sm tabular-nums text-muted">{{ lancamento.criado_em|time:"H:i" }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate text-sm font-medium">{{ lancamento.descricao|default:lancamento.get_origem_display }}</span>
+      <span class="block truncate text-xs text-muted">{{ lancamento.get_origem_display }} · {{ lancamento.get_forma_display }}{% if lancamento.usuario %} · {{ lancamento.usuario.get_short_name }}{% endif %}{% if lancamento.estorno %} · estornado{% endif %}</span>
+    </span>
+    <span class="whitespace-nowrap font-medium tabular-nums {% if lancamento.is_income %}money-in{% else %}money-out{% endif %} {% if lancamento.estorno %}line-through opacity-60{% endif %}">{% if lancamento.is_income %}+{% else %}−{% endif %} {{ lancamento.valor|brl }}</span>
+    {% if request.user.is_manager and lancamento.can_reverse %}
+    <button class="btn-icon -my-1 -mr-2 min-h-9 w-9" type="button" hx-get="{% url 'financeiro:estornar' lancamento.pk %}" hx-target="#modal-body" aria-label="Estornar {{ lancamento.descricao }}" title="Estornar"><span class="[&_svg]:h-4 [&_svg]:w-4">{% include "components/icon.html" with name="repeat" %}</span></button>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="card p-6 text-center text-sm text-muted">Nada lançado neste caixa ainda.</p>
+{% endif %}

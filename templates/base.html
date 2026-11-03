@@ -25,6 +25,9 @@
       <a class="nav-side {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
       {% if request.user.is_manager %}
       <a class="nav-side {% nav_active '/estoque' %}" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
+      <a class="nav-side {% nav_active '/financeiro' '/relatorios' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Financeiro</a>
+      {% else %}
+      <a class="nav-side {% nav_active '/financeiro' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Caixa</a>
       {% endif %}
       {% if request.user.is_owner %}
       <a class="nav-side {% nav_active '/espacos' %}" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
@@ -34,6 +37,10 @@
       {% endif %}
     </nav>
 
+    <a class="register-pill {% if caixa_aberto %}is-open{% endif %}" href="{% url 'financeiro:caixa' %}">
+      <span class="register-dot" aria-hidden="true"></span>
+      {% if caixa_aberto %}Caixa aberto{% else %}Caixa fechado{% endif %}
+    </a>
     <div class="flex items-center gap-2.5 border-t border-border pt-3">
       <span class="avatar" aria-hidden="true">{{ request.user.nome|initials }}</span>
       <div class="min-w-0 flex-1">
@@ -75,11 +82,13 @@
     <a class="nav-bottom {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
     <a class="nav-bottom {% nav_active '/pdv' %}" href="{% url 'pdv:home' %}">{% include "components/icon.html" with name="cart" %} PDV</a>
     <a class="nav-bottom {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
-    {% if request.user.is_manager %}
     <div class="relative flex flex-1" x-data="{ open: false }" @click.outside="open = false">
-      <button type="button" class="nav-bottom {% nav_active '/estoque' '/espacos' '/ajustes' '/conta' %}" :aria-expanded="open" aria-expanded="false" @click="open = !open">{% include "components/icon.html" with name="more" %} Mais</button>
+      <button type="button" class="nav-bottom {% nav_active '/estoque' '/financeiro' '/relatorios' '/espacos' '/ajustes' '/conta' %}" :aria-expanded="open" aria-expanded="false" @click="open = !open">{% include "components/icon.html" with name="more" %} Mais</button>
       <div class="nav-more" x-show="open" x-cloak>
+        <a class="nav-side" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} {% if request.user.is_manager %}Financeiro{% else %}Caixa{% endif %}</a>
+        {% if request.user.is_manager %}
         <a class="nav-side" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
+        {% endif %}
         {% if request.user.is_owner %}
         <a class="nav-side" href="{% url 'espacos:list' %}">{% include "components/icon.html" with name="court" %} Espaços</a>
         <a class="nav-side" href="{% url 'estabelecimentos:ajustes' %}">{% include "components/icon.html" with name="settings" %} Ajustes</a>
@@ -88,9 +97,6 @@
         {% endif %}
       </div>
     </div>
-    {% else %}
-    <a class="nav-bottom {% nav_active '/conta' %}" href="{% url 'contas:senha' %}">{% include "components/icon.html" with name="settings" %} Conta</a>
-    {% endif %}
   </nav>
 </div>
 

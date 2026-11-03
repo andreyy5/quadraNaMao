@@ -61,6 +61,7 @@
     --color-success: 52 240 170;
     --color-warning: 255 200 61;
     --color-danger: 255 107 128;
+    --color-chart: 14 158 184;
   }
 
   [data-mode="light"] {
@@ -78,6 +79,7 @@
     --color-success: 4 120 87;
     --color-warning: 161 98 7;
     --color-danger: 190 30 50;
+    --color-chart: 0 108 158;
   }
 
   /* Temas por modalidade: só o acento muda, os componentes continuam os mesmos. */
@@ -628,6 +630,45 @@
   }
   .palette-item.is-selected > svg { @apply text-primary; }
 
+  /* Caixa */
+  .register-pill {
+    @apply mb-3 flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-medium text-muted hover:bg-surface-2/70 hover:text-text;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+  .register-dot { @apply h-2 w-2 shrink-0 rounded-full bg-muted/60; }
+  .register-pill.is-open .register-dot { @apply bg-success; box-shadow: 0 0 8px rgb(var(--color-success)); }
+  .money-in { @apply text-success; }
+  .money-out { @apply text-danger; }
+  .data-table th { @apply py-1.5 pr-3 text-left text-xs font-medium text-muted; }
+  .data-table td { @apply border-t border-border/60 py-1.5 pr-3 tabular-nums; }
+
+  /* Gráficos: cor própria, porque o ciano do botão é claro demais para área de dados. */
+  .bars { @apply flex h-44 items-end gap-0.5 border-b border-border; }
+  .bars-col {
+    @apply relative flex h-full min-w-0 flex-1 cursor-default items-end;
+    outline-offset: -1px;
+  }
+  .bars-col > span.bars-fill {
+    @apply mx-auto block w-full max-w-10 rounded-t bg-chart;
+    min-height: 0;
+    transform-origin: bottom;
+    animation: grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    transition: filter 0.15s ease;
+  }
+  .bars-col:hover > span.bars-fill,
+  .bars-col:focus-visible > span.bars-fill { filter: brightness(1.25); }
+  .bars-tip {
+    @apply pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs tabular-nums;
+  }
+  .bars-col:hover .bars-tip,
+  .bars-col:focus-visible .bars-tip { @apply block; }
+  .hbar { @apply h-2 overflow-hidden rounded-full bg-surface-2; }
+  .hbar > span {
+    @apply block h-full rounded-full bg-chart;
+    transform-origin: left;
+    animation: grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+
   /* Menu "Mais" do celular */
   .nav-more {
     @apply absolute bottom-full right-2 z-30 mb-2 flex w-48 flex-col gap-0.5 rounded-2xl border border-border bg-surface p-1.5;
@@ -677,6 +718,13 @@
     box-shadow: 0 0 14px rgb(var(--color-primary) / calc(var(--glow) * 0.5));
   }
   .pay-option.is-selected > svg { @apply text-primary; }
+  .pay-option input { @apply sr-only; }
+  .pay-option:has(input:checked) {
+    @apply border-primary bg-primary/10 text-text;
+    box-shadow: 0 0 14px rgb(var(--color-primary) / calc(var(--glow) * 0.5));
+  }
+  .pay-option:has(input:checked) > svg { @apply text-primary; }
+  .pay-option:has(input:focus-visible) { outline: 2px solid rgb(var(--color-primary)); outline-offset: 2px; }
 
   /* No celular o carrinho sobe do rodapé; a partir do tablet fica fixo ao lado dos produtos. */
   .pdv-cart {
@@ -814,6 +862,9 @@ dialog#modal:has([data-palette]) { @apply m-0 mb-auto rounded-b-2xl rounded-t-no
 }
 @keyframes grow-x {
   from { transform: scaleX(0); }
+}
+@keyframes grow-y {
+  from { transform: scaleY(0); }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }

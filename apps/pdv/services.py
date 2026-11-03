@@ -15,6 +15,8 @@ from apps.agenda.models import Reserva
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estoque.models import Produto
 from apps.estoque.services import lock_products, record_sale_exit, record_sale_return
+from apps.financeiro.models import ContaReceber
+from apps.financeiro.services import receive_account, record_sale_income, reverse_sale_income
 
 from .models import ItemVenda, Venda
 
@@ -133,6 +135,7 @@ def complete_sale(estabelecimento, items, forma, usuario=None, recebido=None, to
     )
     _add_items(venda, cart, usuario)
     _register_payment(venda, recebido)
+    record_sale_income(venda, usuario)
     return venda
 
 
@@ -172,8 +175,8 @@ def _lock_sale(venda):
 
 
 @transaction.atomic
-def close_tab(venda, forma, recebido=None):
-    """Recebe o pagamento de uma comanda."""
+def close_tab(venda, forma, usuario, recebido=None):
+    """Recebe o pagamento de uma comanda, com a entrada no caixa de quem recebeu."""
     venda = _lock_sale(venda)
     if not venda.is_tab:
         raise SaleClosed(venda)
@@ -182,7 +185,32 @@ def close_tab(venda, forma, recebido=None):
     venda.concluida_em = timezone.now()
     venda.save(update_fields=["status", "forma_pagamento", "concluida_em", "atualizado_em"])
     _register_payment(venda, recebido)
+    record_sale_income(venda, usuario)
     return venda
+
+
+class NothingToCharge(SaleError):
+    def __init__(self):
+        super().__init__("Não há nada para receber nesta reserva.")
+
+
+@transaction.atomic
+def charge_reservation(reserva, valor, forma, usuario, include_tab=True, recebido=None):
+    """Recebe a reserva e, se pedido, a comanda dela de uma vez: cada uma gera o próprio lançamento."""
+    comanda = None
+    if include_tab:
+        comanda = Venda.all_tenants.filter(reserva=reserva, status=Venda.Status.ABERTA).first()
+    total = valor + (comanda.total if comanda else Decimal("0"))
+    if total <= 0:
+        raise NothingToCharge
+    if forma == Venda.Forma.DINHEIRO and recebido is not None and recebido < total:
+        raise InsufficientPayment
+    if valor > 0:
+        receive_account(ContaReceber.all_tenants.get(reserva=reserva), valor, forma, usuario)
+    if comanda:
+        close_tab(comanda, forma, usuario)
+    troco = recebido - total if forma == Venda.Forma.DINHEIRO and recebido else Decimal("0")
+    return {"total": total, "troco": troco, "comanda": comanda}
 
 
 def _return_items(venda, itens, usuario):
@@ -221,11 +249,13 @@ def _mark_cancelled(venda, usuario, motivo):
 
 @transaction.atomic
 def cancel_sale(venda, usuario=None, motivo=""):
-    """Cancela a venda e devolve os itens ao estoque. Fica no histórico, marcada como cancelada."""
+    """Cancela, devolve os itens ao estoque e, se já estava paga, estorna no caixa de quem cancelou."""
     venda = _lock_sale(venda)
     if venda.is_cancelled:
         raise SaleClosed(venda)
     _return_items(venda, list(_items(venda).select_related("produto")), usuario)
+    if not venda.is_tab:
+        reverse_sale_income(venda, usuario, motivo)
     _mark_cancelled(venda, usuario, motivo)
     return venda
 

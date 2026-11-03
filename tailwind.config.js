@@ -20,6 +20,7 @@ module.exports = {
         success: token("success"),
         warning: token("warning"),
         danger: token("danger"),
+        chart: token("chart"),
       },
       fontFamily: {
         sans: ["Inter Variable", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],

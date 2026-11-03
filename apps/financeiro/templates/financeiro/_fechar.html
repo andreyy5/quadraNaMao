@@ -1,0 +1,26 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body"
+      x-data="closeRegister($el.dataset)" {% if request.user.is_manager %}data-esperado="{{ summary.dinheiro_esperado|stringformat:'s' }}"{% endif %} @input="refresh">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Fechar caixa" %}
+  <div class="sheet-body">
+    {% include "components/form_errors.html" %}
+    {% include "financeiro/_resumo.html" %}
+    <div>
+      {% include "components/field.html" with field=form.saldo_conferido prefix="R$" %}
+      {% if request.user.is_manager %}
+      <dl class="mt-2 flex justify-between gap-3 text-sm">
+        <div class="flex gap-1.5"><dt class="text-muted">Esperado:</dt><dd class="font-medium tabular-nums">{{ summary.dinheiro_esperado|brl }}</dd></div>
+        <div class="flex gap-1.5" x-show="contado" x-cloak><dt class="text-muted">Diferença:</dt><dd class="font-medium tabular-nums" :class="diferenca === 0 ? 'text-success' : 'text-warning'" x-text="money(diferenca)"></dd></div>
+      </dl>
+      {% else %}
+      <p class="help">Conte o dinheiro da gaveta e digite o total. Pix e cartão não entram nessa conta.</p>
+      {% endif %}
+    </div>
+    {% include "components/field.html" with field=form.observacao %}
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">Fechar caixa</button>
+    <button class="btn-ghost" type="button" data-close-modal>Voltar</button>
+  </div>
+</form>

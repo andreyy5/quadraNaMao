@@ -1,0 +1,30 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body"
+      x-data="receiveForm($el.dataset)" @input="refresh" @change="refresh">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Receber conta" %}
+  <div class="sheet-body">
+    <div class="ticket">
+      <div class="min-w-0">
+        <p class="ticket-time">{{ conta.saldo|brl }}</p>
+        <p class="mt-0.5 truncate text-sm text-muted">{{ conta.descricao }}{% if conta.cliente %} · {{ conta.cliente.nome }}{% endif %}</p>
+      </div>
+    </div>
+    {% include "components/form_errors.html" %}
+    {% if not caixa %}
+    {% include "financeiro/_abrir_antes.html" %}
+    {% else %}
+    {% include "components/field.html" with field=form.valor prefix="R$" %}
+    {% include "financeiro/_forma_options.html" with field=form.forma %}
+    <div x-show="forma === 'DINHEIRO'" x-cloak>
+      {% include "components/field.html" with field=form.recebido prefix="R$" %}
+      <p class="mt-2 text-sm font-medium text-success" x-show="change > 0" x-text="'Troco: ' + money(change)"></p>
+      <p class="field-error" x-show="recebidoShort" x-cloak>O valor recebido é menor que o total.</p>
+    </div>
+    {% endif %}
+  </div>
+  <div class="sheet-foot">
+    {% if caixa %}<button class="btn-primary flex-1" type="submit" :disabled="!forma || !totalCents || recebidoShort">Confirmar recebimento</button>{% endif %}
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

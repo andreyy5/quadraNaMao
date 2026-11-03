@@ -1,0 +1,19 @@
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Dinheiro na gaveta" %}
+  <div class="sheet-body">
+    {% include "components/form_errors.html" %}
+    <fieldset>
+      <legend class="label">{{ form.tipo.label }}</legend>
+      <div class="grid grid-cols-2 gap-2">
+        {% for option in form.tipo %}<label class="choice-card justify-center text-sm font-medium">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+      </div>
+    </fieldset>
+    {% include "components/field.html" with field=form.valor prefix="R$" %}
+    {% include "components/field.html" with field=form.descricao %}
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="submit">Registrar</button>
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

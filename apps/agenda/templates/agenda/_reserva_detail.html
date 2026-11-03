@@ -26,6 +26,10 @@
 
     {% if reserva.observacoes %}<p class="whitespace-pre-line rounded-xl bg-surface-2/70 px-3.5 py-3 text-sm">{{ reserva.observacoes }}</p>{% endif %}
 
+    {% if conta and conta.valor_pago %}
+    <p class="flex items-center justify-between gap-3 text-sm"><span class="text-muted">Recebido da reserva</span><span class="font-medium tabular-nums {% if reserva.is_paid %}text-success{% endif %}">{{ conta.valor_pago|brl }}{% if conta.saldo %} · falta {{ conta.saldo|brl }}{% endif %}</span></p>
+    {% endif %}
+
     {% if consumos or reserva.is_open %}
     <section aria-label="Consumo">
       <div class="mb-1.5 flex items-center justify-between gap-2">
@@ -55,10 +59,16 @@
     {% endif %}
   </div>
 
+  {% if can_charge and not reserva.is_open %}
+  <div class="sheet-foot">
+    <button class="btn-primary flex-1" type="button" hx-get="{% url 'financeiro:receber_reserva' reserva.pk %}" hx-target="#modal-body">{% include "components/icon.html" with name="dinheiro" %} Receber</button>
+  </div>
+  {% endif %}
   {% if reserva.is_open %}
   <div class="sheet-foot flex-col items-stretch">
+    {% if can_charge %}<button class="btn-primary w-full" type="button" hx-get="{% url 'financeiro:receber_reserva' reserva.pk %}" hx-target="#modal-body">{% include "components/icon.html" with name="dinheiro" %} Receber</button>{% endif %}
     <div class="flex gap-2">
-      <button class="btn-primary flex-1" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "concluida"}'>{% include "components/icon.html" with name="check" %} Concluir</button>
+      <button class="{% if can_charge %}btn-secondary{% else %}btn-primary{% endif %} flex-1" type="button" hx-post="{% url 'agenda:reserva_status' reserva.pk %}" hx-vals='{"acao": "concluida"}'>{% include "components/icon.html" with name="check" %} Concluir</button>
       <button class="btn-secondary flex-1" type="button" hx-get="{% url 'agenda:reserva_update' reserva.pk %}" hx-target="#modal-body">Editar ou remarcar</button>
     </div>
     <div class="flex justify-between gap-2">

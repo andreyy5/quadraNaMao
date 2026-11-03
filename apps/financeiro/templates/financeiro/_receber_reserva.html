@@ -1,0 +1,41 @@
+{% load ui %}
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body" data-theme="{{ reserva.espaco.tema }}"
+      x-data="receiveForm($el.dataset)" {% if comanda %}data-comanda="{{ comanda.total|stringformat:'s' }}"{% endif %} @input="refresh" @change="refresh">
+  {% csrf_token %}
+  {% include "components/modal_header.html" with title="Receber" %}
+  <div class="sheet-body">
+    <div class="ticket">
+      <div class="min-w-0">
+        <p class="ticket-time" x-text="money(totalCents)"></p>
+        <p class="mt-0.5 truncate text-sm text-muted">{{ reserva.cliente.nome }} · {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}</p>
+      </div>
+    </div>
+
+    {% include "components/form_errors.html" %}
+
+    {% if not caixa %}
+    {% include "financeiro/_abrir_antes.html" %}
+    {% else %}
+    <div>
+      {% include "components/field.html" with field=form.valor prefix="R$" hide_optional=True %}
+      {% if conta.valor_pago %}<p class="help">Já recebido: {{ conta.valor_pago|brl }} de {{ conta.valor|brl }}.</p>{% else %}<p class="help">Pode receber só uma parte, como um sinal.</p>{% endif %}
+    </div>
+    {% if comanda %}
+    <div>
+      {% include "components/checkbox.html" with field=form.incluir_comanda %}
+      <p class="help">Comanda #{{ comanda.numero }}: {{ comanda.total|brl }} em consumo.</p>
+    </div>
+    {% endif %}
+    {% include "financeiro/_forma_options.html" with field=form.forma %}
+    <div x-show="forma === 'DINHEIRO'" x-cloak>
+      {% include "components/field.html" with field=form.recebido prefix="R$" %}
+      <p class="mt-2 text-sm font-medium text-success" x-show="change > 0" x-text="'Troco: ' + money(change)"></p>
+      <p class="field-error" x-show="recebidoShort" x-cloak>O valor recebido é menor que o total.</p>
+    </div>
+    {% endif %}
+  </div>
+  <div class="sheet-foot">
+    {% if caixa %}<button class="btn-primary flex-1" type="submit" :disabled="!forma || !totalCents || recebidoShort">Confirmar recebimento</button>{% endif %}
+    <button class="btn-ghost" type="button" data-close-modal>Fechar</button>
+  </div>
+</form>

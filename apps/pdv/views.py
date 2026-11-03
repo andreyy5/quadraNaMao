@@ -15,6 +15,7 @@ from apps.estabelecimentos.mixins import ModalResponseMixin, TenantRequiredMixin
 from apps.estabelecimentos.templatetags.ui import brl
 from apps.estoque.models import Produto
 from apps.estoque.services import StockError
+from apps.financeiro.services import FinanceError
 
 from . import services
 from .forms import CancelSaleForm, CheckoutForm, CloseTabForm
@@ -139,7 +140,7 @@ class FinalizarView(TenantRequiredMixin, ModalResponseMixin, View):
                 message = f"Venda #{venda.numero} concluída."
                 if venda.troco:
                     message += f" Troco: {brl(venda.troco)}."
-        except (services.SaleError, StockError) as exc:
+        except (services.SaleError, StockError, FinanceError) as exc:
             return _reject(str(exc))
         return self.modal_success(message, PDV_URL)
 
@@ -232,8 +233,10 @@ class ReceberComandaView(TenantRequiredMixin, ModalResponseMixin, View):
         if not form.is_valid():
             return _reject("Escolha a forma de pagamento.")
         try:
-            venda = services.close_tab(venda, form.cleaned_data["forma"], form.cleaned_data["recebido"])
-        except services.SaleError as exc:
+            venda = services.close_tab(
+                venda, form.cleaned_data["forma"], request.user, form.cleaned_data["recebido"]
+            )
+        except (services.SaleError, FinanceError) as exc:
             return _reject(str(exc))
         message = f"Comanda recebida: {brl(venda.total)}."
         if venda.troco:
@@ -281,7 +284,7 @@ class CancelarVendaView(TenantRequiredMixin, ModalResponseMixin, DetailView):
             return self.render_to_response(self.get_context_data(form=form))
         try:
             services.cancel_sale(self.object, usuario=request.user, motivo=form.cleaned_data["motivo"])
-        except services.SaleError as exc:
+        except (services.SaleError, FinanceError) as exc:
             return self.render_to_response(self.get_context_data(form=form, error=str(exc)))
         return self.modal_success(
             f"Venda #{self.object.numero} cancelada. Os itens voltaram ao estoque.", reverse("pdv:vendas")

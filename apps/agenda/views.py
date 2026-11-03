@@ -17,6 +17,8 @@ from apps.clientes.services import find_or_create_client, format_phone
 from apps.espacos.models import Espaco
 from apps.espacos.services import load_schedule
 from apps.estabelecimentos.mixins import ModalResponseMixin, TenantRequiredMixin
+from apps.estabelecimentos.templatetags.ui import brl
+from apps.financeiro.models import ContaReceber
 
 from . import services
 from .forms import BloqueioForm, ReservaForm
@@ -294,6 +296,12 @@ class ReservaDetailView(TenantRequiredMixin, ModalResponseMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context["eventos"] = self.object.eventos.select_related("usuario")
         context["consumos"] = self.object.vendas.exclude(status="CANCELADA")
+        conta = ContaReceber.objects.filter(reserva=self.object).first()
+        comanda_aberta = any(venda.is_tab for venda in context["consumos"])
+        context["conta"] = conta
+        context["can_charge"] = self.object.status != Reserva.Status.CANCELADA and (
+            comanda_aberta or (conta is not None and conta.is_open and conta.saldo > 0)
+        )
         return context
 
 
@@ -311,7 +319,10 @@ class ReservaCancelView(TenantRequiredMixin, ModalResponseMixin, DetailView):
             services.cancel_reservation(self.object, usuario=request.user)
         except services.ReservationError as exc:
             return self.render_to_response(self.get_context_data(error=str(exc)))
-        return self.modal_success("Reserva cancelada. O horário ficou livre.", AGENDA_URL)
+        message = "Reserva cancelada. O horário ficou livre."
+        if self.object.valor_pago > 0:
+            message += f" Havia {brl(self.object.valor_pago)} recebidos: estorne no caixa se for devolver."
+        return self.modal_success(message, AGENDA_URL)
 
 
 class ReservaStatusView(TenantRequiredMixin, ModalResponseMixin, View):

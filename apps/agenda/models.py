@@ -75,6 +75,10 @@ class Reserva(TenantModel):
     def is_open(self):
         return self.status in (self.Status.PENDENTE, self.Status.CONFIRMADA)
 
+    @property
+    def is_paid(self):
+        return self.valor_total > 0 and self.valor_pago >= self.valor_total
+
 
 class Bloqueio(TenantModel):
     class Motivo(models.TextChoices):

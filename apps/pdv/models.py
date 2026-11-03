@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models import Q
 
 from apps.estabelecimentos.models import TenantModel
+from apps.financeiro.models import FormaPagamento
 
 
 class Venda(TenantModel):
@@ -11,12 +12,7 @@ class Venda(TenantModel):
         CONCLUIDA = "CONCLUIDA", "Concluída"
         CANCELADA = "CANCELADA", "Cancelada"
 
-    class Forma(models.TextChoices):
-        PIX = "PIX", "Pix"
-        DINHEIRO = "DINHEIRO", "Dinheiro"
-        CARTAO_DEBITO = "CARTAO_DEBITO", "Débito"
-        CARTAO_CREDITO = "CARTAO_CREDITO", "Crédito"
-        OUTRO = "OUTRO", "Outro"
+    Forma = FormaPagamento
 
     numero = models.PositiveIntegerField("número")
     status = models.CharField("status", max_length=10, choices=Status.choices, default=Status.CONCLUIDA)
@@ -24,6 +20,14 @@ class Venda(TenantModel):
     total = models.DecimalField("total", max_digits=9, decimal_places=2, default=0)
     valor_recebido = models.DecimalField(
         "valor recebido", max_digits=9, decimal_places=2, null=True, blank=True
+    )
+    caixa = models.ForeignKey(
+        "financeiro.Caixa",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="vendas",
+        verbose_name="caixa",
     )
     reserva = models.ForeignKey(
         "agenda.Reserva",

@@ -1,13 +1,14 @@
 import unicodedata
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
 from apps.agenda.models import Reserva
 from apps.estabelecimentos.mixins import TenantCreateMixin, TenantRequiredMixin
+from apps.financeiro.models import ContaBase, ContaReceber
 
 from .forms import ClienteForm
 from .models import Cliente
@@ -76,6 +77,12 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                 "terms": "consumo",
             },
             {"label": "Vendas do dia", "icon": "receipt", "url": reverse("pdv:vendas"), "terms": "historico"},
+            {
+                "label": "Meu caixa",
+                "icon": "dinheiro",
+                "url": reverse("financeiro:caixa"),
+                "terms": "abrir fechar",
+            },
             {"label": "Agenda do dia", "icon": "calendar", "url": reverse("agenda:day"), "terms": "hoje"},
             {"label": "Agenda da semana", "icon": "calendar", "url": reverse("agenda:week"), "terms": ""},
             {
@@ -94,6 +101,24 @@ class PaletteView(TenantRequiredMixin, TemplateView):
         ]
         if self.request.user.is_manager:
             actions += [
+                {
+                    "label": "Contas a pagar",
+                    "icon": "receipt",
+                    "url": reverse("financeiro:pagar"),
+                    "terms": "boleto despesa",
+                },
+                {
+                    "label": "Contas a receber",
+                    "icon": "receipt",
+                    "url": reverse("financeiro:receber"),
+                    "terms": "cobranca",
+                },
+                {
+                    "label": "Relatórios",
+                    "icon": "chart",
+                    "url": reverse("relatorios:relatorio"),
+                    "terms": "faturamento ocupacao",
+                },
                 {
                     "label": "Estoque",
                     "icon": "box",
@@ -161,6 +186,9 @@ class ClienteDetailView(TenantRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         reservas = Reserva.objects.filter(cliente=self.object).select_related("espaco")
         context["reservas"] = reservas.order_by("-inicio")[:30]
+        contas = ContaReceber.objects.filter(cliente=self.object, status=ContaBase.Status.ABERTA)
+        em_aberto = contas.aggregate(total=Sum("valor"), pago=Sum("valor_pago"))
+        context["em_aberto"] = (em_aberto["total"] or 0) - (em_aberto["pago"] or 0)
         context["resumo"] = reservas.aggregate(
             total=Count("pk", filter=~Q(status=Reserva.Status.CANCELADA)),
             faltas=Count("pk", filter=Q(status=Reserva.Status.NAO_COMPARECEU)),

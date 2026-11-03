@@ -31,7 +31,18 @@
       {% for error in form.quantidade.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
     </div>
 
-    <div x-show="tipo === 'ENTRADA'">{% include "components/field.html" with field=form.custo prefix="R$" %}</div>
+    <div class="flex flex-col gap-3" x-show="tipo === 'ENTRADA'">
+      {% include "components/field.html" with field=form.custo prefix="R$" %}
+      {% if request.user.is_manager %}
+      <div x-data="{ conta: $el.querySelector('[name=gerar_conta]').checked }" @change="conta = $el.querySelector('[name=gerar_conta]').checked">
+        {% include "components/checkbox.html" with field=form.gerar_conta %}
+        <div class="mt-1 grid gap-3 sm:grid-cols-2" x-show="conta" x-cloak>
+          {% include "components/field.html" with field=form.fornecedor %}
+          {% include "components/field.html" with field=form.vencimento hide_optional=True %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
     {% include "components/field.html" with field=form.observacao %}
   </div>
   <div class="sheet-foot">
