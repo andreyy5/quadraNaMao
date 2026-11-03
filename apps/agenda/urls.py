@@ -19,4 +19,15 @@ urlpatterns = [
     path("bloqueios/novo/", views.BloqueioCreateView.as_view(), name="bloqueio_create"),
     path("bloqueios/impacto/", views.BloqueioImpactView.as_view(), name="bloqueio_impact"),
     path("bloqueios/<int:pk>/remover/", views.BloqueioDeleteView.as_view(), name="bloqueio_delete"),
+    path("bloqueios/avisar/", views.BloqueioAvisarView.as_view(), name="bloqueio_avisar"),
+    path("mensalistas/", views.MensalistaListView.as_view(), name="mensalistas"),
+    path("mensalistas/novo/", views.MensalistaCreateView.as_view(), name="mensalista_create"),
+    path("mensalistas/<int:pk>/", views.MensalistaDetailView.as_view(), name="mensalista_detail"),
+    path("mensalistas/<int:pk>/editar/", views.MensalistaUpdateView.as_view(), name="mensalista_update"),
+    path(
+        "mensalistas/<int:pk>/encerrar/", views.MensalistaEncerrarView.as_view(), name="mensalista_encerrar"
+    ),
+    path(
+        "mensalistas/avisos/<int:pk>/resolver/", views.MensalistaAvisoView.as_view(), name="mensalista_aviso"
+    ),
 ]

@@ -4,13 +4,15 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import TemplateView
 
+from apps.agenda.models import MensalistaAviso, Reserva
 from apps.agenda.services import day_summary
 from apps.contas.mixins import ManagerRequiredMixin
 from apps.estabelecimentos.mixins import TenantRequiredMixin
 from apps.estoque.services import stock_overview
-from apps.financeiro.models import ContaPagar, ContaReceber
+from apps.financeiro.models import ContaPagar, ContaReceber, Pagamento
 from apps.financeiro.services import accounts_overview, generate_recurring_accounts
 from apps.pdv import services as pdv_services
+from apps.whatsapp.models import Mensagem
 
 from .services import MAX_REPORT_DAYS, revenue_report, setup_checklist
 
@@ -36,10 +38,23 @@ class DashboardView(TenantRequiredMixin, TemplateView):
             sales=pdv_services.day_summary(self.request.tenant, timezone.localdate()),
             stock=stock_overview(self.request.tenant),
             bills=self._bills(),
+            avisos=self._avisos(),
             receivables=self._receivables(),
             checklist=setup_checklist(self.request.tenant) if self.request.user.is_owner else None,
         )
         return context
+
+    def _avisos(self):
+        today = timezone.localdate()
+        avisos = {
+            "mensalistas": MensalistaAviso.objects.filter(resolvido=False, data__gte=today).count(),
+            "pendentes": Reserva.objects.filter(status=Reserva.Status.PENDENTE).count(),
+            "whatsapp": Mensagem.objects.filter(
+                status=Mensagem.Status.FALHOU, criado_em__gte=timezone.now() - timedelta(days=7)
+            ).count(),
+            "pix_atrasado": Pagamento.objects.filter(status=Pagamento.Status.PAGO_ATRASADO).count(),
+        }
+        return avisos if any(avisos.values()) else None
 
     def _bills(self):
         if not self.request.user.is_manager:

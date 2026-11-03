@@ -1,0 +1,7 @@
+{% extends "publico/base.html" %}
+
+{% block content %}
+<div id="status" {% if pagamento.is_pending %}hx-get="{{ request.path }}" hx-trigger="every 5s" hx-swap="innerHTML"{% endif %}>
+  {% include "publico/_status.html" %}
+</div>
+{% endblock %}

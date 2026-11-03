@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mensalista %}Editar mensalista{% else %}Novo mensalista{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% if mensalista %}{% url 'agenda:mensalista_detail' mensalista.pk %}{% else %}{% url 'agenda:mensalistas' %}{% endif %}">{% include "components/icon.html" with name="left" %} Voltar</a>
+<h1 class="mb-5">{% if mensalista %}Editar mensalista{% else %}Novo mensalista{% endif %}</h1>
+
+<form method="post" class="form-card" x-data="{ mensal: $el.querySelector('[name=cobranca][value=MENSAL]').checked }" @change="mensal = $el.querySelector('[name=cobranca][value=MENSAL]').checked">
+  {% csrf_token %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    <div>
+      {% include "components/field.html" with field=form.cliente %}
+      <a class="link-action mt-1.5" href="{% url 'clientes:create' %}">Cliente novo? Cadastre primeiro</a>
+    </div>
+
+    <fieldset>
+      <legend class="label">{{ form.espaco.label }}</legend>
+      <div class="grid grid-cols-2 gap-2">
+        {% for option in form.espaco %}
+        <label class="choice-card" data-theme="{{ option.data.value.instance.tema }}">
+          {{ option.tag }}
+          {% include "components/illustration.html" with tema=option.data.value.instance.tema class="h-8 w-auto shrink-0" %}
+          <span class="min-w-0 truncate text-sm font-medium">{{ option.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% for error in form.espaco.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+
+    <fieldset>
+      <legend class="label">{{ form.dia_semana.label }}</legend>
+      <div class="flex flex-wrap gap-2">
+        {% for option in form.dia_semana %}<label class="chip">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+      </div>
+      {% for error in form.dia_semana.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    </fieldset>
+
+    <div class="grid gap-4 sm:grid-cols-[10rem_1fr]">
+      {% include "components/field.html" with field=form.hora %}
+      <fieldset>
+        <legend class="label">{{ form.duracao_minutos.label }}</legend>
+        <div class="grid grid-cols-4 gap-1.5">
+          {% for option in form.duracao_minutos %}<label class="chip justify-center px-1">{{ option.tag }} {{ option.choice_label }}</label>{% endfor %}
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      {% include "components/field.html" with field=form.data_inicio %}
+      {% include "components/field.html" with field=form.data_fim %}
+    </div>
+
+    <fieldset>
+      <legend class="label">{{ form.cobranca.label|capfirst }}</legend>
+      <div class="grid grid-cols-2 gap-2">
+        {% for option in form.cobranca %}
+        <label class="choice-card choice-card-col items-start text-left">
+          {{ option.tag }}
+          <span class="text-sm font-semibold">{{ option.choice_label }}</span>
+          <span class="text-xs font-normal leading-snug text-muted">{% if option.data.value == "MENSAL" %}Um valor fixo por mês, em contas a receber.{% else %}Cada jogo tem o seu valor, cobrado como uma reserva.{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="label" for="{{ form.valor.id_for_label }}"><span x-text="mensal ? 'Valor da mensalidade' : 'Valor por jogo'">Valor</span></label>
+        <div class="input-group"><span class="input-affix">R$</span>{{ form.valor }}</div>
+        {% for error in form.valor.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      <div x-show="mensal" x-cloak>{% include "components/field.html" with field=form.dia_vencimento %}</div>
+    </div>
+
+    {% include "components/field.html" with field=form.observacoes %}
+  </div>
+  <div class="form-card-foot">
+    <button class="btn-primary" type="submit">{% if mensalista %}Salvar alterações{% else %}Cadastrar e reservar{% endif %}</button>
+    {% if mensalista %}<p class="text-xs text-muted">Mudou dia, hora, espaço ou valor? As reservas futuras são refeitas.</p>{% endif %}
+  </div>
+</form>
+{% endblock %}

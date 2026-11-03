@@ -1,0 +1,23 @@
+{% extends "base_html.html" %}
+
+{% block title %}Reservar · {{ estabelecimento.nome }}{% endblock %}
+
+{% block body %}
+<div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pb-10 pt-6">
+  <header class="mb-6 flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <p class="eyebrow">Reserva online</p>
+      <h1 class="truncate">{{ estabelecimento.nome }}</h1>
+      {% if estabelecimento.endereco %}<p class="truncate text-sm text-muted">{{ estabelecimento.endereco }}</p>{% endif %}
+    </div>
+    {% include "components/theme_toggle.html" %}
+  </header>
+
+  <main class="flex-1">
+    {% for message in messages %}<div data-toast class="toast mb-4" role="status">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mt-10 text-center text-xs text-muted">Reserva feita com {% include "components/wordmark.html" with class="text-xs" mark_class="h-3.5 w-3.5" %}</footer>
+</div>
+{% endblock %}

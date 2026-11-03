@@ -9,7 +9,7 @@
 
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
   <div class="min-w-0">
-    <h1>Caixa de {{ caixa.operador.get_short_name }}</h1>
+    <h1>{% if caixa.operador %}Caixa de {{ caixa.nome }}{% else %}Pix online{% endif %}</h1>
     <p class="text-sm text-muted">Aberto em {{ caixa.criado_em|date:"d/m" }} às {{ caixa.criado_em|time:"H:i" }}{% if caixa.fechado_em %} · fechado em {{ caixa.fechado_em|date:"d/m" }} às {{ caixa.fechado_em|time:"H:i" }}{% if caixa.fechado_por and caixa.fechado_por != caixa.operador %} por {{ caixa.fechado_por.get_short_name }}{% endif %}{% endif %}</p>
   </div>
   {% if caixa.is_open %}<button class="btn-primary" type="button" hx-get="{% url 'financeiro:fechar' caixa.pk %}" hx-target="#modal-body">Fechar caixa</button>{% endif %}

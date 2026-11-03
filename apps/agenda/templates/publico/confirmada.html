@@ -1,0 +1,13 @@
+{% extends "publico/base.html" %}
+{% load ui %}
+
+{% block content %}
+<div class="neon-panel flex flex-col items-center p-6 text-center">
+  <span class="product-icon h-14 w-14 text-success [&_svg]:h-7 [&_svg]:w-7">{% include "components/icon.html" with name="check" %}</span>
+  <h2 class="mt-4 text-lg">Reserva confirmada!</h2>
+  {% if reserva %}
+  <p class="mt-1 text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"l, d/m" }}</span>, das {{ reserva.inicio|time:"H:i" }} às {{ reserva.fim|time:"H:i" }}, em {{ reserva.espaco.nome }}. Valor: {{ reserva.valor_total|brl }}, pago no local.</p>
+  {% endif %}
+  <a class="btn-secondary mt-5" href="{% url 'publico:reservar' estabelecimento.slug %}">Fazer outra reserva</a>
+</div>
+{% endblock %}

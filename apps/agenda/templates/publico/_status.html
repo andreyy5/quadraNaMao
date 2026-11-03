@@ -1,0 +1,44 @@
+{% load ui %}
+<div class="ticket mb-5" data-theme="{{ reserva.espaco.tema }}">
+  <div class="min-w-0">
+    <p class="ticket-time">{{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }}</p>
+    <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span></p>
+  </div>
+  <p class="font-semibold tabular-nums">{{ reserva.valor_total|brl }}</p>
+</div>
+
+{% if pagamento.status == "PAGO" %}
+<div class="neon-panel flex flex-col items-center p-6 text-center">
+  <span class="product-icon h-14 w-14 text-success [&_svg]:h-7 [&_svg]:w-7">{% include "components/icon.html" with name="check" %}</span>
+  <h2 class="mt-4 text-lg">Reserva confirmada!</h2>
+  <p class="mt-1 text-sm text-muted">Recebemos o sinal de {{ pagamento.valor|brl }}. O restante você paga no local. Bom jogo!</p>
+</div>
+{% elif pagamento.is_pending %}
+<div class="card flex flex-col items-center p-5 text-center" x-data="{ copiado: false }">
+  <p class="eyebrow">Sinal para garantir o horário</p>
+  <p class="neon-text mt-1 font-display text-4xl font-semibold text-primary">{{ pagamento.valor|brl }}</p>
+  <p class="mt-1 text-sm text-muted">Pague até as <strong class="text-text">{{ pagamento.expira_em|time:"H:i" }}</strong>. Depois disso, o horário é liberado.</p>
+  <div class="mt-4 w-56 rounded-xl bg-white p-2 [&_svg]:h-auto [&_svg]:w-full" aria-label="QR Code do Pix">{{ qr }}</div>
+  <label class="label mt-4 self-start" for="copia-e-cola">Pix copia e cola</label>
+  <textarea id="copia-e-cola" class="input min-h-0 py-2.5 font-mono text-xs" rows="3" readonly>{{ pagamento.copia_e_cola }}</textarea>
+  <button type="button" class="btn-primary mt-3 w-full" @click="navigator.clipboard.writeText(document.getElementById('copia-e-cola').value); copiado = true; setTimeout(() => copiado = false, 2500)" x-text="copiado ? 'Código copiado!' : 'Copiar código Pix'">Copiar código Pix</button>
+  <p class="mt-3 flex items-center gap-2 text-xs text-muted"><span class="live-dot" aria-hidden="true"></span> {% if pagamento.provedor == "estatico" %}Depois de pagar, a equipe confirma a sua reserva.{% else %}Esta página atualiza sozinha quando o pagamento chegar.{% endif %}</p>
+  {% if simulado %}
+  <form method="post" action="{% url 'publico:simular' estabelecimento.slug token %}" class="mt-4 w-full">
+    {% csrf_token %}
+    <button class="btn-secondary w-full" type="submit">Simular pagamento (ambiente de desenvolvimento)</button>
+  </form>
+  {% endif %}
+</div>
+{% elif pagamento.status == "PAGO_ATRASADO" %}
+<div class="card p-6 text-center">
+  <h2 class="text-lg">Pagamento recebido depois do prazo</h2>
+  <p class="mt-1 text-sm text-muted">O horário já tinha sido liberado. A equipe vai falar com você para remarcar ou devolver o valor.</p>
+</div>
+{% else %}
+<div class="card p-6 text-center">
+  <h2 class="text-lg">Este pedido não está mais valendo</h2>
+  <p class="mt-1 text-sm text-muted">O prazo para pagar o sinal terminou e o horário foi liberado.</p>
+  <a class="btn-primary mt-5" href="{% url 'publico:reservar' estabelecimento.slug %}">Fazer um novo pedido</a>
+</div>
+{% endif %}

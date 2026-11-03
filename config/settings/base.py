@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.financeiro",
     "apps.estoque",
     "apps.pdv",
+    "apps.whatsapp",
     "apps.relatorios",
 ]
 
@@ -97,4 +98,31 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.financeiro.tasks.generate_all_recurring_accounts",
         "schedule": 60 * 60 * 24,
     },
+    "gerar-reservas-de-mensalistas": {
+        "task": "apps.agenda.tasks.generate_mensalista_reservations",
+        "schedule": 60 * 60 * 24,
+    },
+    "expirar-sinais-vencidos": {"task": "apps.agenda.tasks.expire_pending", "schedule": 60 * 5},
+    "enviar-lembretes": {"task": "apps.whatsapp.tasks.send_due_reminders", "schedule": 60 * 10},
 }
+
+# Endereço público do sistema, usado nos links mandados por WhatsApp (pagamento do sinal).
+SITE_URL = env("SITE_URL", default="http://127.0.0.1:8000")
+
+# Pix: "estatico" gera o copia e cola com a chave do estabelecimento; a equipe confirma o pagamento.
+PIX_PROVIDER = env("PIX_PROVIDER", default="estatico")
+
+# WhatsApp: "console" só registra no histórico; "cloud" usa a Cloud API da Meta (docs/whatsapp.md).
+WHATSAPP_PROVIDER = env("WHATSAPP_PROVIDER", default="console")
+WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
+WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
+WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="")
+WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v21.0")
+
+# Cache: em memória por padrão. Em produção com vários processos, aponte para o Redis em CACHE_URL,
+# para o limite de tentativas valer entre todos eles.
+CACHES = {"default": env.cache_url("CACHE_URL", default="locmemcache://")}
+
+# Quantos proxies reversos (nginx, balanceador) ficam na frente do Django. Com 0, vale o REMOTE_ADDR.
+# Usado no limite de tentativas: errar aqui faz todo mundo dividir o mesmo limite ou permite burlá-lo.
+NUM_PROXIES = env.int("NUM_PROXIES", default=0)

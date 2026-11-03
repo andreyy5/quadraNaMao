@@ -30,6 +30,46 @@ class Estabelecimento(models.Model):
         default=False,
         help_text="Ligado, o PDV deixa vender o que está zerado no sistema. Bom se o estoque não for contado sempre.",
     )
+    # Reservas pelo link público
+    reserva_online_ativa = models.BooleanField(
+        "aceitar reservas pelo link público",
+        default=False,
+        help_text="O cliente escolhe o horário sozinho e paga o sinal por Pix.",
+    )
+    chave_pix = models.CharField(
+        "chave Pix",
+        max_length=77,
+        blank=True,
+        help_text="CPF, CNPJ, e-mail, celular com +55 ou chave aleatória. Recebe os sinais.",
+    )
+    pix_cidade = models.CharField(
+        "cidade do recebedor", max_length=15, blank=True, help_text="Aparece no comprovante do Pix."
+    )
+    prazo_sinal_minutos = models.PositiveSmallIntegerField(
+        "prazo para pagar o sinal (min)",
+        default=30,
+        help_text="Sem pagamento nesse prazo, a reserva é cancelada e o horário volta a ficar livre.",
+    )
+    cancelamento_horas = models.PositiveSmallIntegerField(
+        "cancelamento sem perder o sinal (horas antes)",
+        default=24,
+        help_text="Dentro desse prazo, o sinal é devolvido. Depois, fica com o estabelecimento.",
+    )
+    # WhatsApp
+    whatsapp_ativo = models.BooleanField(
+        "enviar mensagens pelo WhatsApp",
+        default=False,
+        help_text="Confirmações, lembretes e avisos para clientes que aceitaram receber.",
+    )
+    whatsapp_phone_number_id = models.CharField(
+        "ID do número (phone number ID)",
+        max_length=40,
+        blank=True,
+        help_text="Fica no painel da Meta, em WhatsApp > Configuração da API.",
+    )
+    lembrete_horas = models.PositiveSmallIntegerField(
+        "lembrete antes do jogo (horas)", default=3, help_text="Zero desliga o lembrete."
+    )
     ativo = models.BooleanField("ativo", default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

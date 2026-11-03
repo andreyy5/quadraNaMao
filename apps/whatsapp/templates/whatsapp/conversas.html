@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}WhatsApp · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-3xl{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1>WhatsApp</h1>
+    <p class="text-sm text-muted">Confirmações, lembretes e avisos enviados, e o que os clientes responderam.</p>
+  </div>
+  {% if request.user.is_owner %}<a class="btn-secondary" href="{% url 'estabelecimentos:whatsapp' %}">{% include "components/icon.html" with name="settings" %} Configurar</a>{% endif %}
+</div>
+
+{% if not ativo %}
+<p class="form-alert mb-4">O envio pelo WhatsApp está desligado. {% if request.user.is_owner %}Ligue em Ajustes, na aba WhatsApp.{% else %}Peça ao dono para ligar em Ajustes.{% endif %}</p>
+{% endif %}
+{% if falhas %}
+<p class="mb-4 rounded-xl border border-warning/40 bg-warning/10 px-3.5 py-3 text-sm">{{ falhas }} mensage{{ falhas|pluralize:"m,ns" }} não {{ falhas|pluralize:"foi,foram" }} entregue{{ falhas|pluralize }}. Abra a conversa para ver o motivo.</p>
+{% endif %}
+
+{% if conversas %}
+<div class="card divide overflow-hidden">
+  {% for mensagem in conversas %}
+  <a class="row-link" href="{% url 'whatsapp:conversa' mensagem.telefone|slice:'1:' %}">
+    <span class="avatar" aria-hidden="true">{% if mensagem.cliente %}{{ mensagem.cliente.nome|initials }}{% else %}?{% endif %}</span>
+    <span class="min-w-0 flex-1">
+      <span class="flex items-baseline justify-between gap-2">
+        <span class="truncate font-medium">{% if mensagem.cliente %}{{ mensagem.cliente.nome }}{% else %}{{ mensagem.telefone }}{% endif %}</span>
+        <span class="shrink-0 text-xs text-muted">{{ mensagem.criado_em|date:"d/m H:i" }}</span>
+      </span>
+      <span class="block truncate text-sm text-muted">{% if mensagem.is_outgoing %}Você: {% endif %}{{ mensagem.corpo|default:"—" }}</span>
+    </span>
+    {% if mensagem.status == "FALHOU" %}<span class="badge badge-nao_compareceu">Falhou</span>{% elif not mensagem.is_outgoing %}<span class="badge badge-confirmada">Nova</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+{% include "components/empty_state.html" with tema="quadra" title="Nenhuma mensagem ainda" text="As confirmações e os lembretes aparecem aqui assim que forem enviados para clientes que aceitaram receber." %}
+{% endif %}
+{% endblock %}

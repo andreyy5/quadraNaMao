@@ -139,3 +139,21 @@ def test_password_change_keeps_session(client, attendant):
 def test_logout_requires_post(owner_client):
     assert owner_client.get(reverse("contas:logout")).status_code == 405
     assert owner_client.post(reverse("contas:logout")).status_code == 302
+
+
+def test_login_is_blocked_after_repeated_failures(client, owner):
+    url = reverse("contas:login")
+    for _ in range(5):
+        client.post(url, {"username": owner.email, "password": "errada"})
+    blocked = client.post(url, {"username": owner.email, "password": "senha-forte-123"})
+    assert blocked.status_code == 429
+    assert "Muitas tentativas" in blocked.content.decode()
+    assert "_auth_user_id" not in client.session
+
+
+def test_failures_for_one_email_do_not_block_another(client, owner, attendant):
+    url = reverse("contas:login")
+    for _ in range(5):
+        client.post(url, {"username": owner.email, "password": "errada"})
+    response = client.post(url, {"username": attendant.email, "password": "senha-forte-123"})
+    assert response.status_code == 302

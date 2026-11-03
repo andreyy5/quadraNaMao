@@ -11,6 +11,8 @@ urlpatterns = [
     path("pdv/", include("apps.pdv.urls")),
     path("estoque/", include("apps.estoque.urls")),
     path("financeiro/", include("apps.financeiro.urls")),
+    path("whatsapp/", include("apps.whatsapp.urls")),
+    path("r/", include("apps.agenda.public_urls")),
     path("", include("apps.relatorios.urls")),
 ]
 

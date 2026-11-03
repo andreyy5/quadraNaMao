@@ -13,6 +13,14 @@
       </div>
     </div>
 
+    {% if reserva.is_pending %}
+    <div class="rounded-xl border border-warning/40 bg-warning/10 px-3.5 py-3 text-sm" x-data="{ copiado: false }">
+      <p class="font-medium">Aguardando o sinal de {{ reserva.valor_sinal|brl }} até as {{ reserva.expira_em|time:"H:i" }}</p>
+      <p class="mt-0.5 text-muted">Pedido feito pelo link público. Sem pagamento no prazo, a reserva é cancelada sozinha. Recebeu o Pix? Use o botão Receber.</p>
+      {% if pagamento %}<button type="button" class="link-action mt-1.5" @click="navigator.clipboard.writeText('{{ pagamento.copia_e_cola }}'); copiado = true" x-text="copiado ? 'Código Pix copiado' : 'Copiar o Pix copia e cola para mandar ao cliente'">Copiar o Pix copia e cola</button>{% endif %}
+    </div>
+    {% endif %}
+
     <div class="client-card">
       <span class="avatar" aria-hidden="true">{{ reserva.cliente.nome|initials }}</span>
       <a class="min-w-0 flex-1" href="{% url 'clientes:detail' reserva.cliente_id %}">
@@ -27,6 +35,7 @@
     {% if reserva.observacoes %}<p class="whitespace-pre-line rounded-xl bg-surface-2/70 px-3.5 py-3 text-sm">{{ reserva.observacoes }}</p>{% endif %}
 
     {% if conta and conta.valor_pago %}
+    {% if reserva.mensalista_id %}<p class="text-sm text-muted">Horário de mensalista. <a class="link-action text-sm" href="{% url 'agenda:mensalista_detail' reserva.mensalista_id %}">Ver mensalista</a></p>{% endif %}
     <p class="flex items-center justify-between gap-3 text-sm"><span class="text-muted">Recebido da reserva</span><span class="font-medium tabular-nums {% if reserva.is_paid %}text-success{% endif %}">{{ conta.valor_pago|brl }}{% if conta.saldo %} · falta {{ conta.saldo|brl }}{% endif %}</span></p>
     {% endif %}
 

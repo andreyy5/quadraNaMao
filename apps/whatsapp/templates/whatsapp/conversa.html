@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui clientes_ui %}
+
+{% block title %}Conversa · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+<a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'whatsapp:conversas' %}">{% include "components/icon.html" with name="left" %} Conversas</a>
+
+<div class="mb-4 flex items-center gap-3">
+  <span class="avatar h-12 w-12" aria-hidden="true">{% if cliente %}{{ cliente.nome|initials }}{% else %}?{% endif %}</span>
+  <div class="min-w-0 flex-1">
+    <h1 class="truncate text-xl">{% if cliente %}{{ cliente.nome }}{% else %}{{ telefone|telefone }}{% endif %}</h1>
+    <p class="text-sm text-muted">{{ telefone|telefone }}{% if cliente %} · {% if cliente.aceite_whatsapp %}aceita mensagens{% else %}não aceita mensagens automáticas{% endif %}{% endif %}</p>
+  </div>
+  {% if cliente %}<a class="btn-secondary" href="{% url 'clientes:detail' cliente.pk %}">Ficha</a>{% endif %}
+</div>
+
+<ol class="card flex flex-col gap-2 p-4" aria-label="Mensagens">
+  {% for mensagem in mensagens %}
+  <li class="flex {% if mensagem.is_outgoing %}justify-end{% endif %}">
+    <div class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm {% if mensagem.is_outgoing %}rounded-br-md bg-primary/15{% else %}rounded-bl-md bg-surface-2{% endif %}">
+      <p class="whitespace-pre-line">{{ mensagem.corpo|default:"(conteúdo apagado)" }}</p>
+      <p class="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-muted">
+        {% if mensagem.template %}<span>modelo</span> · {% endif %}{% if mensagem.enviada_por %}{{ mensagem.enviada_por.get_short_name }} · {% endif %}{{ mensagem.criado_em|date:"d/m H:i" }}
+        {% if mensagem.is_outgoing %} · <span class="{% if mensagem.status == 'FALHOU' %}text-danger{% elif mensagem.status == 'LIDA' %}text-primary{% endif %}">{{ mensagem.get_status_display }}</span>{% endif %}
+      </p>
+      {% if mensagem.erro %}<p class="mt-1 text-xs text-danger">{{ mensagem.erro }}</p>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+
+{% if janela_aberta %}
+<form method="post" class="mt-4 flex items-end gap-2">
+  {% csrf_token %}
+  <label class="sr-only" for="resposta">Responder</label>
+  <textarea id="resposta" name="texto" class="input min-h-11 flex-1 py-2.5" rows="2" maxlength="1000" placeholder="Escreva uma resposta" required></textarea>
+  <button class="btn-primary" type="submit">Enviar</button>
+</form>
+<p class="help">O cliente escreveu nas últimas 24 horas, então dá para responder com texto livre.</p>
+{% else %}
+<p class="mt-4 text-sm text-muted">Fora da janela de 24 horas, o WhatsApp só aceita os modelos aprovados (confirmação, lembrete e avisos). Quando o cliente escrever, você pode responder por aqui.</p>
+{% endif %}
+{% endblock %}

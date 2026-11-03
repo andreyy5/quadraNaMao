@@ -85,6 +85,16 @@ def cashier(tenant):
     return with_register(usuario)
 
 
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """O limite de tentativas usa o cache: cada teste começa com a contagem zerada."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def tenant(db):
     return make_tenant("arena-a")

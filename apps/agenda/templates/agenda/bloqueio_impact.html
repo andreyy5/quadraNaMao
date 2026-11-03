@@ -24,7 +24,14 @@
 
 {% if reservas %}
 <h2 class="mb-1">Reservas afetadas ({{ reservas|length }})</h2>
-<p class="mb-3 text-sm text-muted">Remarque uma a uma ou cancele as selecionadas. Avise cada cliente pelo botão de WhatsApp: o envio automático chega em uma próxima fase.</p>
+<p class="mb-3 text-sm text-muted">Remarque uma a uma ou cancele as selecionadas. {% if whatsapp_ativo %}O aviso pelo WhatsApp vai para quem aceitou receber; para os outros, use o botão de conversa.{% else %}Avise cada cliente pelo botão de WhatsApp.{% endif %}</p>
+{% if whatsapp_ativo %}
+<form method="post" action="{% url 'agenda:bloqueio_avisar' %}" class="mb-3">
+  {% csrf_token %}
+  <input type="hidden" name="ids" value="{{ request.GET.ids }}">
+  <button class="btn-secondary" type="submit">{% include "components/icon.html" with name="message" %} Avisar todos pelo WhatsApp</button>
+</form>
+{% endif %}
 <form method="post" action="{% url 'agenda:reserva_bulk_cancel' %}">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ request.get_full_path }}">

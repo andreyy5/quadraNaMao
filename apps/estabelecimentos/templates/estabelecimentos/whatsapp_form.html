@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "estabelecimentos/_tabs.html" with active="whatsapp" %}
+
+<section class="card mb-5 p-5" aria-labelledby="status-whatsapp">
+  <h2 id="status-whatsapp" class="mb-3">Ligação com a Meta</h2>
+  <ul class="flex flex-col gap-2 text-sm">
+    <li class="flex items-center gap-2">{% if provider == "cloud" %}<span class="register-dot bg-success"></span> Envio real pela Cloud API{% else %}<span class="register-dot"></span> Modo de teste: as mensagens só aparecem no histórico, nada sai para o WhatsApp{% endif %}</li>
+    <li class="flex items-center gap-2"><span class="register-dot {% if has_token %}bg-success{% endif %}"></span> Token de acesso {% if has_token %}configurado{% else %}não configurado (WHATSAPP_ACCESS_TOKEN){% endif %}</li>
+    <li class="flex items-center gap-2"><span class="register-dot {% if has_secret %}bg-success{% endif %}"></span> Segredo do aplicativo {% if has_secret %}configurado{% else %}não configurado (WHATSAPP_APP_SECRET){% endif %}</li>
+    <li class="flex items-center gap-2"><span class="register-dot {% if has_verify %}bg-success{% endif %}"></span> Token de verificação do webhook {% if has_verify %}configurado{% else %}não configurado (WHATSAPP_VERIFY_TOKEN){% endif %}</li>
+  </ul>
+  <p class="mt-3 text-sm text-muted">Endereço do webhook para cadastrar na Meta:</p>
+  <p class="mt-1 rounded-lg bg-surface-2/70 px-3 py-2 font-mono text-xs">{{ webhook_url }}</p>
+  <p class="help">Precisa ser um endereço público com HTTPS. O passo a passo completo está em docs/whatsapp.md.</p>
+</section>
+
+<form method="post" class="form-card mb-5">
+  {% csrf_token %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/checkbox.html" with field=form.whatsapp_ativo %}
+    {% include "components/field.html" with field=form.whatsapp_phone_number_id %}
+    {% include "components/field.html" with field=form.lembrete_horas %}
+  </div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">Salvar</button></div>
+</form>
+
+<form method="post" class="form-card">
+  {% csrf_token %}
+  <input type="hidden" name="teste" value="1">
+  <div class="form-card-body">
+    <h2>Testar a ligação</h2>
+    <p class="text-sm text-muted">Manda o modelo "hello_world", que a Meta cria em toda conta nova. Use um número cadastrado como destinatário de teste no painel da Meta.</p>
+    {% include "components/field.html" with field=test_form.telefone icon="message" %}
+  </div>
+  <div class="form-card-foot"><button class="btn-secondary" type="submit">Enviar teste</button></div>
+</form>
+{% endblock %}

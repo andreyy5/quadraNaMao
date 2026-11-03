@@ -15,7 +15,9 @@ from django.utils import timezone
 
 from apps.espacos.models import Espaco
 from apps.espacos.services import load_schedule, load_schedules
+from apps.financeiro.models import Pagamento
 from apps.financeiro.services import sync_reservation_account
+from apps.whatsapp.services import notify_reservation
 
 from .models import CONFLICT_CONSTRAINT, Bloqueio, Reserva, ReservaEvento
 
@@ -300,13 +302,36 @@ def slot_problem(espaco, inicio, fim, ignore=None):
     return None
 
 
+def _notify(reserva, kind):
+    """Avisa o cliente pelo WhatsApp depois que a transação confirmar. As regras de quem recebe ficam lá.
+
+    Com o WhatsApp desligado no momento da mudança, nem agenda o aviso.
+    """
+    if not reserva.estabelecimento.whatsapp_ativo:
+        return
+    reserva_id = reserva.pk
+    transaction.on_commit(lambda: notify_reservation(reserva_id, kind))
+
+
 def _is_conflict(error):
     diag = getattr(error.__cause__, "diag", None)
     return getattr(diag, "constraint_name", None) == CONFLICT_CONSTRAINT
 
 
 def create_reservation(
-    espaco, cliente, inicio, fim, valor_total=None, observacoes="", usuario=None, origem=Reserva.Origem.PAINEL
+    espaco,
+    cliente,
+    inicio,
+    fim,
+    valor_total=None,
+    observacoes="",
+    usuario=None,
+    origem=Reserva.Origem.PAINEL,
+    status=Reserva.Status.CONFIRMADA,
+    expira_em=None,
+    valor_sinal=Decimal("0"),
+    mensalista=None,
+    notify=True,
 ):
     if espaco.estabelecimento_id != cliente.estabelecimento_id:
         raise TenantMismatch
@@ -326,6 +351,10 @@ def create_reservation(
                     valor_total=valor_total,
                     observacoes=observacoes,
                     origem=origem,
+                    status=status,
+                    expira_em=expira_em,
+                    valor_sinal=valor_sinal,
+                    mensalista=mensalista,
                     criado_por=usuario,
                 )
         except IntegrityError as exc:
@@ -334,6 +363,8 @@ def create_reservation(
             raise
         _record(reserva, ReservaEvento.Acao.CRIADA, usuario)
         sync_reservation_account(reserva)
+        if notify and status == Reserva.Status.CONFIRMADA:
+            _notify(reserva, "confirmada")
     return reserva
 
 
@@ -382,10 +413,12 @@ def update_reservation(reserva, espaco, cliente, inicio, fim, valor_total, obser
             raise
         _record(reserva, ReservaEvento.Acao.ALTERADA, usuario, detalhes)
         sync_reservation_account(reserva)
+        if moved and reserva.status == Reserva.Status.CONFIRMADA:
+            _notify(reserva, "remarcada")
     return reserva
 
 
-def _change_status(reserva, status, acao, usuario, detalhes=""):
+def _change_status(reserva, status, acao, usuario, detalhes="", notify_kind=None):
     with transaction.atomic():
         current = Reserva.all_tenants.select_for_update().get(pk=reserva.pk)
         if not current.is_open:
@@ -394,12 +427,67 @@ def _change_status(reserva, status, acao, usuario, detalhes=""):
         current.save(update_fields=["status", "atualizado_em"])
         _record(current, acao, usuario, detalhes)
         sync_reservation_account(current)
+        if status == Reserva.Status.CANCELADA:
+            Pagamento.all_tenants.filter(reserva=current, status=Pagamento.Status.PENDENTE).update(
+                status=(
+                    Pagamento.Status.EXPIRADO
+                    if acao == ReservaEvento.Acao.EXPIRADA
+                    else Pagamento.Status.CANCELADO
+                )
+            )
+        if notify_kind:
+            _notify(current, notify_kind)
     reserva.status = status
     return reserva
 
 
-def cancel_reservation(reserva, usuario=None, detalhes=""):
-    return _change_status(reserva, Reserva.Status.CANCELADA, ReservaEvento.Acao.CANCELADA, usuario, detalhes)
+def cancel_reservation(reserva, usuario=None, detalhes="", notify=True):
+    return _change_status(
+        reserva,
+        Reserva.Status.CANCELADA,
+        ReservaEvento.Acao.CANCELADA,
+        usuario,
+        detalhes,
+        notify_kind="cancelada" if notify else None,
+    )
+
+
+def confirm_reservation(reserva, usuario=None, detalhes=""):
+    """Pendente vira confirmada quando o sinal é pago. Já confirmada, não faz nada."""
+    with transaction.atomic():
+        current = Reserva.all_tenants.select_for_update().get(pk=reserva.pk)
+        if current.status != Reserva.Status.PENDENTE:
+            return current
+        current.status = Reserva.Status.CONFIRMADA
+        current.expira_em = None
+        current.save(update_fields=["status", "expira_em", "atualizado_em"])
+        _record(current, ReservaEvento.Acao.CONFIRMADA, usuario, detalhes)
+        sync_reservation_account(current)
+        _notify(current, "confirmada")
+    return current
+
+
+def expire_pending_reservations(estabelecimento=None, now=None):
+    """Cancela as pendentes cujo prazo do sinal passou, liberando o horário. Pode rodar quantas vezes for."""
+    now = now or timezone.now()
+    queryset = Reserva.all_tenants.filter(status=Reserva.Status.PENDENTE, expira_em__lt=now)
+    if estabelecimento is not None:
+        queryset = queryset.filter(estabelecimento=estabelecimento)
+    expired = 0
+    for reserva in queryset:
+        try:
+            _change_status(
+                reserva,
+                Reserva.Status.CANCELADA,
+                ReservaEvento.Acao.EXPIRADA,
+                None,
+                "Sinal não pago no prazo",
+                notify_kind="expirada",
+            )
+        except ReservationClosed:
+            continue
+        expired += 1
+    return expired
 
 
 def mark_completed(reserva, usuario=None):

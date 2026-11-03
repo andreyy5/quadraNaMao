@@ -129,6 +129,8 @@
   * { scrollbar-width: thin; scrollbar-color: rgb(var(--color-border)) transparent; }
 
   [x-cloak] { display: none !important; }
+  /* O padrão do fieldset é min-width: min-content, que deixa faixas roláveis alargarem a página. */
+  fieldset { min-width: 0; }
 }
 
 @layer components {
@@ -576,6 +578,11 @@
     }
   }
   .slot-reserved.is-done { @apply border-border bg-surface-2/60 text-muted; border-left-color: rgb(var(--color-muted)); box-shadow: none; }
+  .slot-reserved.is-pending {
+    @apply border-dashed border-warning/60 bg-warning/10;
+    border-left-color: rgb(var(--color-warning));
+    box-shadow: none;
+  }
   .slot-reserved.has-block { border-left-color: rgb(var(--color-warning)); box-shadow: -2px 0 10px -2px rgb(var(--color-warning) / var(--glow)); }
   .slot-blocked {
     @apply border-border text-muted hover:text-text;

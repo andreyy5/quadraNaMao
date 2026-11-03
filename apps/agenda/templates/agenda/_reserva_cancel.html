@@ -6,7 +6,7 @@
     <h2 class="mt-4 text-lg">Cancelar esta reserva?</h2>
     <p class="mt-1 text-sm text-muted"><strong class="font-medium text-text">{{ reserva.cliente.nome }}</strong> em {{ reserva.espaco.nome }}, {{ reserva.inicio|date:"d/m" }} às {{ reserva.inicio|time:"H:i" }}.</p>
     <p class="mt-1 text-sm text-muted">O horário volta a ficar livre na agenda.</p>
-    {% if reserva.valor_pago %}<p class="mt-2 text-sm font-medium text-warning">Esta reserva já tem {{ reserva.valor_pago|brl }} recebidos. O valor não é devolvido sozinho: dono ou gerente estorna no caixa.</p>{% endif %}
+    {% if reserva.valor_pago %}<p class="mt-2 text-sm font-medium text-warning">Esta reserva já tem {{ reserva.valor_pago|brl }} recebidos. {% if dentro_do_prazo %}Faltam mais de {{ prazo_horas }} horas para o jogo: pela política, o valor é devolvido.{% else %}Faltam menos de {{ prazo_horas }} horas para o jogo: pela política, o sinal fica com o estabelecimento.{% endif %} A devolução é um estorno no caixa, feito por dono ou gerente.</p>{% endif %}
     {% if error %}<div class="form-alert mt-4 w-full" role="alert">{{ error }}</div>{% endif %}
   </div>
   <div class="flex gap-2 p-5">

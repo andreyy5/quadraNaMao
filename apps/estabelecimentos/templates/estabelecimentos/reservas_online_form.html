@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Reservas online · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-2xl{% endblock %}
+
+{% block content %}
+{% include "estabelecimentos/_tabs.html" with active="online" %}
+
+<section class="neon-panel mb-5 p-5" x-data="{ copiado: false }">
+  <p class="eyebrow">Link de reserva</p>
+  <p class="mt-1 text-sm text-muted">Mande para os clientes ou coloque na bio do Instagram. Eles escolhem o horário livre sozinhos.</p>
+  <div class="mt-3 flex gap-2">
+    <input id="link-publico" class="input flex-1 font-mono text-sm" value="{{ link_publico }}" readonly>
+    <button type="button" class="btn-secondary" @click="navigator.clipboard.writeText('{{ link_publico }}'); copiado = true; setTimeout(() => copiado = false, 2500)" x-text="copiado ? 'Copiado!' : 'Copiar'">Copiar</button>
+  </div>
+  <a class="link-action mt-2" href="{{ link_publico }}" target="_blank" rel="noopener">Abrir como cliente</a>
+</section>
+
+<form method="post" class="form-card">
+  {% csrf_token %}
+  <div class="form-card-body">
+    {% include "components/form_errors.html" %}
+    {% include "components/checkbox.html" with field=form.reserva_online_ativa %}
+    <div class="grid gap-4 sm:grid-cols-[1fr_12rem]">
+      {% include "components/field.html" with field=form.chave_pix %}
+      {% include "components/field.html" with field=form.pix_cidade %}
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "components/field.html" with field=form.prazo_sinal_minutos %}
+      {% include "components/field.html" with field=form.cancelamento_horas %}
+    </div>
+    <div class="rounded-xl bg-surface-2/60 px-3.5 py-3 text-sm text-muted">
+      <p><strong class="text-text">De onde vem o valor do sinal?</strong> Da tabela de preços de cada espaço, no campo "Sinal". Faixa sem sinal, ou estabelecimento sem chave Pix, gera a reserva já confirmada.</p>
+      <p class="mt-2">Com o Pix estático, o cliente paga direto na sua chave e a equipe confirma o recebimento na reserva. Para a confirmação acontecer sozinha, é preciso escolher um provedor de cobrança (veja docs/integracoes.md).</p>
+    </div>
+  </div>
+  <div class="form-card-foot"><button class="btn-primary" type="submit">Salvar</button></div>
+</form>
+{% endblock %}

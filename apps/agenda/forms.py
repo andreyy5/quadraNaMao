@@ -11,7 +11,7 @@ from apps.espacos.models import Espaco
 from apps.estabelecimentos.forms import StyledFormMixin
 from apps.estabelecimentos.mixins import TenantFormMixin
 
-from .models import Bloqueio
+from .models import DIAS_SEMANA, Bloqueio, Mensalista
 
 DURATION_CHOICES = [
     (30, "30 min"),
@@ -159,3 +159,96 @@ class BloqueioForm(StyledFormMixin, TenantFormMixin, forms.Form):
             end_day = day if end > start else day + timedelta(days=1)
             cleaned["fim"] = datetime.combine(end_day, end, tzinfo=tz)
         return cleaned
+
+
+class MensalistaForm(StyledFormMixin, TenantFormMixin, forms.ModelForm):
+    valor = money_field(label="Valor")
+    dia_semana = forms.TypedChoiceField(
+        label="Dia da semana", choices=DIAS_SEMANA, coerce=int, widget=forms.RadioSelect
+    )
+    duracao_minutos = forms.TypedChoiceField(
+        label="Duração", choices=DURATION_CHOICES, coerce=int, initial=60, widget=forms.RadioSelect
+    )
+
+    class Meta:
+        model = Mensalista
+        fields = [
+            "cliente",
+            "espaco",
+            "dia_semana",
+            "hora",
+            "duracao_minutos",
+            "data_inicio",
+            "data_fim",
+            "cobranca",
+            "valor",
+            "dia_vencimento",
+            "observacoes",
+        ]
+        widgets = {
+            "espaco": forms.RadioSelect,
+            "cobranca": forms.RadioSelect,
+            "hora": forms.TimeInput(attrs=TIME_WIDGET, format="%H:%M"),
+            "data_inicio": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "data_fim": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "observacoes": forms.Textarea(attrs={"rows": 2}),
+        }
+        labels = {"data_fim": "Até", "dia_vencimento": "Vencimento da mensalidade (dia do mês)"}
+        help_texts = {"data_fim": "Deixe em branco se não tem data para acabar."}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["cliente"].queryset = Cliente.objects.filter(anonimizado_em__isnull=True)
+        self.fields["espaco"].queryset = Espaco.objects.filter(ativo=True)
+        self.fields["espaco"].empty_label = None
+        self.fields["dia_vencimento"].widget.attrs.update({"min": 1, "max": 28})
+        if not self.instance.pk:
+            self.fields["data_inicio"].initial = timezone.localdate()
+
+    def clean(self):
+        cleaned = super().clean()
+        inicio, fim = cleaned.get("data_inicio"), cleaned.get("data_fim")
+        if inicio and fim and fim < inicio:
+            self.add_error("data_fim", "A data final precisa ser depois do início.")
+        vencimento = cleaned.get("dia_vencimento")
+        if vencimento is not None and not 1 <= vencimento <= 28:
+            self.add_error("dia_vencimento", "Escolha um dia entre 1 e 28, que existe em todos os meses.")
+        return cleaned
+
+
+class EndMensalistaForm(StyledFormMixin, forms.Form):
+    data_fim = forms.DateField(
+        label="Último jogo em",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="As reservas depois dessa data são canceladas e a mensalidade para de ser gerada.",
+    )
+
+
+class PublicBookingForm(StyledFormMixin, forms.Form):
+    espaco = forms.IntegerField(widget=forms.HiddenInput)
+    data = forms.DateField(widget=forms.HiddenInput)
+    hora = forms.TimeField(widget=forms.HiddenInput, error_messages={"required": "Escolha um horário."})
+    nome = forms.CharField(
+        label="Seu nome", max_length=120, widget=forms.TextInput(attrs={"autocomplete": "name"})
+    )
+    telefone = forms.CharField(
+        label="Seu WhatsApp",
+        max_length=32,
+        widget=forms.TextInput(
+            attrs={
+                "inputmode": "tel",
+                "autocomplete": "tel",
+                "placeholder": "(11) 98888-7777",
+                "data-mask": "phone",
+            }
+        ),
+    )
+    aceite_whatsapp = forms.BooleanField(
+        label="Quero receber a confirmação e o lembrete do jogo pelo WhatsApp", required=False, initial=True
+    )
+
+    def clean_telefone(self):
+        try:
+            return normalize_phone(self.cleaned_data["telefone"])
+        except InvalidPhone as exc:
+            raise forms.ValidationError(str(exc)) from exc

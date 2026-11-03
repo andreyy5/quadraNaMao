@@ -8,20 +8,26 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 
-from apps.agenda.models import Reserva
+from apps.agenda import online
+from apps.agenda.mensalistas import create_mensalista
+from apps.agenda.models import Mensalista, Reserva
 from apps.agenda.services import create_block, create_reservation
+from apps.clientes.models import Cliente
 from apps.clientes.services import find_or_create_client
-from apps.espacos.models import DiaSemana, Espaco
+from apps.espacos.models import DiaSemana, Espaco, TabelaPreco
 from apps.espacos.services import save_price_rules, save_weekly_hours
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estoque.models import MovimentacaoEstoque, Produto
 from apps.estoque.services import register_entry
-from apps.financeiro.models import Caixa, ContaPagar, ContaReceber, Lancamento
+from apps.financeiro.models import Caixa, ContaPagar, ContaReceber, Lancamento, Pagamento
 from apps.financeiro.services import current_register, open_register, receive_account
 from apps.pdv.models import Venda
 from apps.pdv.services import add_to_tab, complete_sale
+from apps.whatsapp.models import Mensagem
+from apps.whatsapp.services import notify_reservation
 
 SLUG = "arena-demo"
 ESPACOS = [
@@ -51,6 +57,10 @@ PRODUTOS = [
 ]
 
 
+def online_link(tenant):
+    return settings.SITE_URL.rstrip("/") + reverse("publico:reservar", args=[tenant.slug])
+
+
 class Command(BaseCommand):
     help = "Cria dados de demonstração com um dono, um atendente, espaços e reservas."
 
@@ -68,6 +78,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Só acrescenta contas e recebimentos de exemplo a uma demonstração já criada.",
         )
+        parser.add_argument(
+            "--online",
+            action="store_true",
+            help="Só liga o link de reserva, o Pix, o WhatsApp e os mensalistas numa demonstração já criada.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -75,6 +90,16 @@ class Command(BaseCommand):
             raise CommandError("O seed_demo só pode rodar em desenvolvimento.")
 
         existing = Estabelecimento.objects.filter(slug=SLUG).first()
+        if options["online"]:
+            if not existing:
+                raise CommandError("A demonstração ainda não existe. Rode o seed_demo sem opções.")
+            if Mensalista.all_tenants.filter(estabelecimento=existing).exists():
+                raise CommandError("A demonstração já tem mensalistas.")
+            owner = get_user_model().objects.filter(estabelecimento=existing, papel="DONO").first()
+            self._seed_online(existing, owner)
+            self.stdout.write(self.style.SUCCESS("Link de reserva, WhatsApp e mensalistas prontos."))
+            self.stdout.write(f"  Link público: {online_link(existing)}")
+            return
         if options["financeiro"]:
             if not existing:
                 raise CommandError("A demonstração ainda não existe. Rode o seed_demo sem opções.")
@@ -155,11 +180,13 @@ class Command(BaseCommand):
 
         self._seed_sales(tenant, owner)
         self._seed_finance(tenant, owner)
+        self._seed_online(tenant, owner)
 
         self.stdout.write(self.style.SUCCESS("Demonstração criada."))
         self.stdout.write("  Dono:      dono@demo.local")
         self.stdout.write("  Atendente: atendente@demo.local")
         self.stdout.write(f"  Senha:     {password}")
+        self.stdout.write(f"  Link público: {online_link(tenant)}")
 
     def _register(self, owner):
         return current_register(owner) or open_register(owner, Decimal("100"))
@@ -242,8 +269,77 @@ class Command(BaseCommand):
         if reserva:
             add_to_tab(tenant, reserva, {produtos["Cerveja long neck"]: 4}, usuario=owner)
 
+    def _seed_online(self, tenant, owner):
+        """Fases 2 e 5: link público com sinal por Pix, WhatsApp em modo de teste e mensalistas."""
+        tenant.reserva_online_ativa = True
+        tenant.chave_pix = "pix@arena-demo.local"
+        tenant.pix_cidade = "Sao Paulo"
+        tenant.whatsapp_ativo = True
+        tenant.save()
+        # Sinal só no horário nobre, como costuma ser.
+        TabelaPreco.all_tenants.filter(espaco__estabelecimento=tenant, hora_inicio=time(18)).update(
+            valor_sinal=Decimal("30")
+        )
+        Cliente.all_tenants.filter(estabelecimento=tenant, nome__in=[c[0] for c in CLIENTES[:4]]).update(
+            aceite_whatsapp=True
+        )
+        espacos = {e.nome: e for e in Espaco.all_tenants.filter(estabelecimento=tenant)}
+        clientes = {c.nome: c for c in Cliente.all_tenants.filter(estabelecimento=tenant)}
+        today = timezone.now().astimezone(tenant.timezone).date()
+        amanha = (today.weekday() + 1) % 7
+        mensalistas = [
+            ("Turma do Beto", "Society", 3, time(20), 90, Mensalista.Cobranca.POR_JOGO, "210.00"),
+            ("Carla Nogueira", "Areia 1", 1, time(8), 60, Mensalista.Cobranca.MENSAL, "320.00"),
+            # Cai em cima de uma reserva avulsa de amanhã: aparece o aviso para o dono resolver.
+            ("Rafael Lima", "Ginásio", amanha, time(16), 60, Mensalista.Cobranca.POR_JOGO, "150.00"),
+        ]
+        for cliente, espaco, dia, hora, minutos, cobranca, valor in mensalistas:
+            mensalista = Mensalista(
+                estabelecimento=tenant,
+                cliente=clientes[cliente],
+                espaco=espacos[espaco],
+                dia_semana=dia,
+                hora=hora,
+                duracao_minutos=minutos,
+                data_inicio=today,
+                cobranca=cobranca,
+                valor=Decimal(valor),
+                dia_vencimento=10,
+            )
+            create_mensalista(mensalista, owner)
+        # Confirmações que já saíram (no modo de teste, só ficam no histórico) e uma conversa aberta.
+        reservas = Reserva.all_tenants.filter(
+            estabelecimento=tenant,
+            status=Reserva.Status.CONFIRMADA,
+            mensalista__isnull=True,
+            cliente__aceite_whatsapp=True,
+            inicio__date=today + timedelta(days=1),
+        )
+        for reserva in reservas[:3]:
+            notify_reservation(reserva.pk, "confirmada")
+        marina = clientes["Marina Duarte"]
+        Mensagem.all_tenants.create(
+            estabelecimento=tenant,
+            cliente=marina,
+            telefone=marina.telefone,
+            direcao=Mensagem.Direcao.ENTRADA,
+            tipo=Mensagem.Tipo.TEXTO,
+            corpo="Oi! Ainda tem horário no sábado de manhã para beach tênis?",
+            status=Mensagem.Status.RECEBIDA,
+            wa_id=f"demo-{secrets.token_hex(6)}",
+        )
+        # Um pedido pelo link esperando o Pix do sinal.
+        inicio = datetime.combine(today + timedelta(days=1), time(18), tzinfo=tenant.timezone)
+        try:
+            online.book_online(tenant, espacos["Areia 2"], inicio, "Paula Mendes", "11987650006", True)
+        except online.OnlineBookingError:
+            pass
+
     def _delete(self, tenant):
-        # Lançamento primeiro: ele protege a venda, a reserva e as contas a que se refere.
+        # Pagamento e lançamento primeiro: eles protegem a venda, a reserva e as contas a que se referem.
+        Pagamento.all_tenants.filter(estabelecimento=tenant).delete()
+        Mensagem.all_tenants.filter(estabelecimento=tenant).delete()
+        Mensalista.all_tenants.filter(estabelecimento=tenant).delete()
         Lancamento.all_tenants.filter(estabelecimento=tenant, estorno_de__isnull=False).delete()
         Lancamento.all_tenants.filter(estabelecimento=tenant).delete()
         ContaReceber.all_tenants.filter(estabelecimento=tenant).delete()

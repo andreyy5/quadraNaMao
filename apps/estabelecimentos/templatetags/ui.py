@@ -27,6 +27,9 @@ def initials(name):
 def nav_active(context, *prefixes):
     """Marca o item do menu cujo caminho corresponde à página atual."""
     path = context["request"].path
+    # Mensalistas tem item próprio no menu, embora fique dentro de /agenda.
+    if prefixes == ("/agenda",) and path.startswith("/agenda/mensalistas"):
+        return ""
     for prefix in prefixes:
         if (prefix == "/" and path == "/") or (prefix != "/" and path.startswith(prefix)):
             return "is-active"

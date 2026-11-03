@@ -4,16 +4,42 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.estabelecimentos.mixins import TenantRequiredMixin
+from apps.estabelecimentos.ratelimit import client_ip, hit, is_limited
 
 from .forms import LoginForm, MembroEquipeCreateForm, MembroEquipeUpdateForm, SenhaForm
 from .mixins import OwnerRequiredMixin
 from .models import Usuario
 
+LOGIN_LIMIT = 5
+LOGIN_IP_LIMIT = 30
+LOGIN_WINDOW = 15 * 60
+
 
 class LoginView(auth_views.LoginView):
+    """Depois de 5 senhas erradas para o mesmo e-mail, ou 30 do mesmo endereço, espera 15 minutos."""
+
     template_name = "contas/login.html"
     authentication_form = LoginForm
     redirect_authenticated_user = True
+
+    def _keys(self):
+        ip = client_ip(self.request)
+        email = self.request.POST.get("username", "").strip().lower()
+        return f"login:{ip}:{email}", f"login-ip:{ip}"
+
+    def post(self, request, *args, **kwargs):
+        user_key, ip_key = self._keys()
+        if is_limited(user_key, LOGIN_LIMIT) or is_limited(ip_key, LOGIN_IP_LIMIT):
+            form = self.get_form()
+            form.add_error(None, "Muitas tentativas seguidas. Espere 15 minutos e tente de novo.")
+            return self.render_to_response(self.get_context_data(form=form), status=429)
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        user_key, ip_key = self._keys()
+        hit(user_key, LOGIN_WINDOW)
+        hit(ip_key, LOGIN_WINDOW)
+        return super().form_invalid(form)
 
 
 class LogoutView(auth_views.LogoutView):

@@ -12,6 +12,7 @@ from django.db.models import Count, Max, Sum
 from django.utils import timezone
 
 from apps.agenda.models import Reserva
+from apps.agenda.online import settle_manual_deposit
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estoque.models import Produto
 from apps.estoque.services import lock_products, record_sale_exit, record_sale_return
@@ -206,7 +207,8 @@ def charge_reservation(reserva, valor, forma, usuario, include_tab=True, recebid
     if forma == Venda.Forma.DINHEIRO and recebido is not None and recebido < total:
         raise InsufficientPayment
     if valor > 0:
-        receive_account(ContaReceber.all_tenants.get(reserva=reserva), valor, forma, usuario)
+        lancamento = receive_account(ContaReceber.all_tenants.get(reserva=reserva), valor, forma, usuario)
+        settle_manual_deposit(reserva, lancamento, usuario)
     if comanda:
         close_tab(comanda, forma, usuario)
     troco = recebido - total if forma == Venda.Forma.DINHEIRO and recebido else Decimal("0")

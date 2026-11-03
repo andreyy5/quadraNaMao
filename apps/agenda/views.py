@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -10,7 +11,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.utils.formats import date_format
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
-from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+from django.views.generic import CreateView, DetailView, FormView, ListView, TemplateView, UpdateView, View
 
 from apps.clientes.models import Cliente
 from apps.clientes.services import find_or_create_client, format_phone
@@ -18,11 +19,13 @@ from apps.espacos.models import Espaco
 from apps.espacos.services import load_schedule
 from apps.estabelecimentos.mixins import ModalResponseMixin, TenantRequiredMixin
 from apps.estabelecimentos.templatetags.ui import brl
-from apps.financeiro.models import ContaReceber
+from apps.financeiro.models import ContaReceber, Pagamento
+from apps.whatsapp.services import notify_block
 
+from . import mensalistas as mensalista_services
 from . import services
-from .forms import BloqueioForm, ReservaForm
-from .models import Bloqueio, Reserva
+from .forms import BloqueioForm, EndMensalistaForm, MensalistaForm, ReservaForm
+from .models import Bloqueio, Mensalista, MensalistaAviso, Reserva
 
 AGENDA_URL = reverse_lazy("agenda:day")
 
@@ -38,6 +41,8 @@ class AgendaDayView(TenantRequiredMixin, TemplateView):
     template_name = "agenda/agenda_day.html"
 
     def get_context_data(self, **kwargs):
+        # Sinal vencido libera o horário mesmo sem o agendador rodando.
+        services.expire_pending_reservations(self.request.tenant)
         context = super().get_context_data(**kwargs)
         day = _parse_day(self.request.GET.get("data"))
         day_url = reverse("agenda:day")
@@ -302,6 +307,9 @@ class ReservaDetailView(TenantRequiredMixin, ModalResponseMixin, DetailView):
         context["can_charge"] = self.object.status != Reserva.Status.CANCELADA and (
             comanda_aberta or (conta is not None and conta.is_open and conta.saldo > 0)
         )
+        context["pagamento"] = Pagamento.objects.filter(
+            reserva=self.object, status=Pagamento.Status.PENDENTE
+        ).first()
         return context
 
 
@@ -312,6 +320,14 @@ class ReservaCancelView(TenantRequiredMixin, ModalResponseMixin, DetailView):
 
     def get_queryset(self):
         return super().get_queryset().select_related("espaco", "cliente")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        horas = self.request.tenant.cancelamento_horas
+        antecedencia = (self.object.inicio - timezone.now()).total_seconds() / 3600
+        context["prazo_horas"] = horas
+        context["dentro_do_prazo"] = antecedencia >= horas
+        return context
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -391,7 +407,31 @@ class BloqueioImpactView(TenantRequiredMixin, TemplateView):
             raise Http404
         context["bloqueios"] = bloqueios
         context["reservas"] = services.affected_reservations(bloqueios)
+        context["whatsapp_ativo"] = self.request.tenant.whatsapp_ativo
         return context
+
+
+class BloqueioAvisarView(TenantRequiredMixin, View):
+    """Avisa pelo WhatsApp os clientes das reservas atingidas por um bloqueio."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        ids = [value for value in request.POST.get("ids", "").split(",") if value.isdigit()]
+        bloqueios = list(Bloqueio.objects.filter(pk__in=ids).select_related("espaco"))
+        if not bloqueios:
+            raise Http404
+        sent = 0
+        for bloqueio in bloqueios:
+            reservas = services.affected_reservations([bloqueio])
+            sent += notify_block(bloqueio, reservas, usuario=request.user)
+        if sent:
+            messages.success(
+                request, f"Aviso enviado pelo WhatsApp para {sent} cliente{'s' if sent > 1 else ''}."
+            )
+        else:
+            messages.error(request, "Nenhum cliente atingido aceitou receber mensagens pelo WhatsApp.")
+        return redirect(f"{reverse('agenda:bloqueio_impact')}?{urlencode({'ids': ','.join(ids)})}")
 
 
 class BloqueioDeleteView(TenantRequiredMixin, View):
@@ -423,3 +463,118 @@ class ReservaBulkCancelView(TenantRequiredMixin, View):
         if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
             return redirect(next_url)
         return redirect(AGENDA_URL)
+
+
+class MensalistaListView(TenantRequiredMixin, ListView):
+    template_name = "agenda/mensalista_list.html"
+    context_object_name = "mensalistas"
+
+    def get_queryset(self):
+        today = timezone.localdate()
+        queryset = Mensalista.objects.select_related("cliente", "espaco").annotate(
+            avisos_abertos=Count("avisos", filter=Q(avisos__resolvido=False, avisos__data__gte=today))
+        )
+        if self.request.GET.get("filtro") == "encerrados":
+            return queryset.filter(data_fim__lt=today)
+        return queryset.filter(Q(data_fim__isnull=True) | Q(data_fim__gte=today))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["filtro"] = self.request.GET.get("filtro", "")
+        return context
+
+
+class MensalistaCreateView(TenantRequiredMixin, CreateView):
+    model = Mensalista
+    form_class = MensalistaForm
+    template_name = "agenda/mensalista_form.html"
+
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.request.GET.get("cliente", "").isdigit():
+            initial["cliente"] = self.request.GET["cliente"]
+        return initial
+
+    def form_valid(self, form):
+        form.instance.estabelecimento = self.request.tenant
+        self.object = mensalista_services.create_mensalista(form.instance, self.request.user)
+        avisos = self.object.avisos.count()
+        message = "Mensalista cadastrado e reservas das próximas semanas criadas."
+        if avisos:
+            message += (
+                f" {avisos} semana{'s' if avisos > 1 else ''} não puderam ser reservadas: veja os avisos."
+            )
+        messages.success(self.request, message)
+        return redirect("agenda:mensalista_detail", pk=self.object.pk)
+
+
+class MensalistaUpdateView(TenantRequiredMixin, UpdateView):
+    model = Mensalista
+    form_class = MensalistaForm
+    template_name = "agenda/mensalista_form.html"
+    context_object_name = "mensalista"
+
+    def form_valid(self, form):
+        before = Mensalista.objects.get(pk=self.object.pk)
+        self.object = mensalista_services.update_mensalista(form.instance, before, self.request.user)
+        messages.success(self.request, "Mensalista salvo. As próximas reservas seguem os dados novos.")
+        return redirect("agenda:mensalista_detail", pk=self.object.pk)
+
+
+class MensalistaDetailView(TenantRequiredMixin, DetailView):
+    model = Mensalista
+    template_name = "agenda/mensalista_detail.html"
+    context_object_name = "mensalista"
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("cliente", "espaco", "conta_mensal")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["proximas"] = (
+            self.object.reservas.filter(inicio__gte=timezone.now())
+            .exclude(status=Reserva.Status.CANCELADA)
+            .order_by("inicio")[:8]
+        )
+        context["avisos"] = self.object.avisos.filter(resolvido=False, data__gte=timezone.localdate())
+        return context
+
+
+class MensalistaEncerrarView(TenantRequiredMixin, ModalResponseMixin, FormView):
+    form_class = EndMensalistaForm
+    modal_template_name = "agenda/_mensalista_encerrar.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.tenant is not None:
+            self.mensalista = get_object_or_404(Mensalista.objects.select_related("cliente"), pk=kwargs["pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        return {"data_fim": timezone.localdate()}
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["mensalista"] = self.mensalista
+        return context
+
+    def form_valid(self, form):
+        cancelled = mensalista_services.end_mensalista(
+            self.mensalista, form.cleaned_data["data_fim"], self.request.user
+        )
+        return self.modal_success(
+            f"Mensalista encerrado. Reservas canceladas: {cancelled}.",
+            reverse("agenda:mensalista_detail", args=[self.mensalista.pk]),
+        )
+
+
+class MensalistaAvisoView(TenantRequiredMixin, View):
+    """Marca o aviso como resolvido, depois que a equipe remarcou ou combinou com o cliente."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        aviso = get_object_or_404(MensalistaAviso, pk=pk)
+        aviso.resolvido = True
+        aviso.save(update_fields=["resolvido", "atualizado_em"])
+        messages.success(request, "Aviso marcado como resolvido.")
+        return redirect("agenda:mensalista_detail", pk=aviso.mensalista_id)

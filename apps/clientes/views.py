@@ -86,6 +86,24 @@ class PaletteView(TenantRequiredMixin, TemplateView):
             {"label": "Agenda do dia", "icon": "calendar", "url": reverse("agenda:day"), "terms": "hoje"},
             {"label": "Agenda da semana", "icon": "calendar", "url": reverse("agenda:week"), "terms": ""},
             {
+                "label": "Mensalistas",
+                "icon": "repeat",
+                "url": reverse("agenda:mensalistas"),
+                "terms": "fixo semanal",
+            },
+            {
+                "label": "Novo mensalista",
+                "icon": "repeat",
+                "url": reverse("agenda:mensalista_create"),
+                "terms": "horario fixo",
+            },
+            {
+                "label": "WhatsApp",
+                "icon": "message",
+                "url": reverse("whatsapp:conversas"),
+                "terms": "mensagens",
+            },
+            {
                 "label": "Novo cliente",
                 "icon": "users",
                 "url": reverse("clientes:create"),

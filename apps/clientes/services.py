@@ -74,3 +74,6 @@ def anonymize_client(cliente):
     cliente.anonimizado_em = timezone.now()
     cliente.save()
     Reserva.all_tenants.filter(cliente=cliente).update(observacoes="")
+    from apps.whatsapp.models import Mensagem
+
+    Mensagem.all_tenants.filter(cliente=cliente).update(corpo="", telefone=cliente.telefone, parametros=[])

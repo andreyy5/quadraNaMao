@@ -16,7 +16,17 @@ from django.utils import timezone
 
 from apps.agenda.models import Reserva
 
-from .models import Caixa, Categoria, ContaBase, ContaPagar, ContaReceber, FormaPagamento, Lancamento
+from . import pix
+from .models import (
+    Caixa,
+    Categoria,
+    ContaBase,
+    ContaPagar,
+    ContaReceber,
+    FormaPagamento,
+    Lancamento,
+    Pagamento,
+)
 
 ZERO = Decimal("0")
 RECURRING_HORIZON_DAYS = 31
@@ -72,6 +82,22 @@ class CannotReverse(FinanceError):
 
 
 # --- Caixa
+
+
+def online_register(estabelecimento):
+    """Caixa que recebe o que o provedor de Pix confirma sozinho. É criado na primeira vez que precisa."""
+    caixa = Caixa.all_tenants.filter(
+        estabelecimento=estabelecimento, tipo=Caixa.Tipo.ONLINE, fechado_em__isnull=True
+    ).first()
+    if caixa:
+        return caixa
+    try:
+        with transaction.atomic():
+            return Caixa.all_tenants.create(estabelecimento=estabelecimento, tipo=Caixa.Tipo.ONLINE)
+    except IntegrityError:
+        return Caixa.all_tenants.get(
+            estabelecimento=estabelecimento, tipo=Caixa.Tipo.ONLINE, fechado_em__isnull=True
+        )
 
 
 def current_register(usuario):
@@ -260,8 +286,11 @@ def _lock_account(model, conta):
 
 
 @transaction.atomic
-def receive_account(conta, valor, forma, usuario):
-    """Baixa total ou parcial de uma conta a receber, com o lançamento no caixa do operador."""
+def receive_account(conta, valor, forma, usuario, caixa=None):
+    """Baixa total ou parcial de uma conta a receber, com o lançamento no caixa do operador.
+
+    Com `caixa`, o valor entra nele; é o caso do caixa online, que recebe o Pix confirmado pelo provedor.
+    """
     if valor <= 0:
         raise InvalidAmount
     if conta.reserva_id:
@@ -271,7 +300,12 @@ def receive_account(conta, valor, forma, usuario):
         raise AccountNotOpen(conta)
     if valor > conta.saldo:
         raise AmountAboveBalance(conta.saldo)
-    caixa = _lock_current_register(usuario)
+    if caixa is None:
+        caixa = _lock_current_register(usuario)
+    else:
+        caixa = Caixa.all_tenants.select_for_update().get(pk=caixa.pk)
+        if not caixa.is_open:
+            raise RegisterAlreadyClosed
     lancamento = _entry(
         caixa,
         Lancamento.Tipo.ENTRADA,
@@ -519,3 +553,23 @@ def accounts_overview(model, estabelecimento, today=None):
             abertas.filter(vencimento__gt=today, vencimento__lte=today + timedelta(days=7))
         ),
     }
+
+
+# --- Cobrança Pix
+
+
+def create_pix_charge(reserva, valor, expira_em):
+    """Gera o Pix copia e cola da reserva no provedor configurado."""
+    provider = pix.get_provider()
+    txid = pix.new_txid()
+    data = provider.create_charge(reserva.estabelecimento, valor, txid, expira_em)
+    return Pagamento.all_tenants.create(
+        estabelecimento_id=reserva.estabelecimento_id,
+        reserva=reserva,
+        valor=valor,
+        provedor=provider.code,
+        txid=txid,
+        id_externo=data.get("id_externo", ""),
+        copia_e_cola=data["copia_e_cola"],
+        expira_em=expira_em,
+    )

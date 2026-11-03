@@ -11,9 +11,9 @@
 <div class="card divide overflow-hidden">
   {% for caixa in caixas %}
   <a class="row-link" href="{% url 'financeiro:caixa_detail' caixa.pk %}">
-    <span class="avatar" aria-hidden="true">{{ caixa.operador.nome|initials }}</span>
+    <span class="avatar" aria-hidden="true">{% if caixa.operador %}{{ caixa.operador.nome|initials }}{% else %}PX{% endif %}</span>
     <span class="min-w-0 flex-1">
-      <span class="block truncate font-medium">{{ caixa.operador.get_short_name }}</span>
+      <span class="block truncate font-medium">{{ caixa.nome }}</span>
       <span class="block truncate text-sm text-muted">{{ caixa.criado_em|date:"d/m/Y" }} · {{ caixa.criado_em|time:"H:i" }}{% if caixa.fechado_em %}–{{ caixa.fechado_em|time:"H:i" }}{% endif %}</span>
     </span>
     {% if caixa.is_open %}<span class="badge badge-concluida">Aberto</span>

@@ -1,0 +1,16 @@
+<form method="post" action="{{ request.path }}" hx-post="{{ request.path }}" hx-target="#modal-body">
+  {% csrf_token %}
+  <div class="flex flex-col items-center px-6 pb-2 pt-7 text-center">
+    <span class="danger-mark">{% include "components/icon.html" with name="alert" %}</span>
+    <h2 class="mt-4 text-lg">Encerrar o mensalista?</h2>
+    <p class="mt-1 text-sm text-muted">{{ mensalista.cliente.nome }}, {{ mensalista.get_dia_semana_display|lower }} às {{ mensalista.hora|time:"H:i" }}. O histórico fica guardado.</p>
+    <div class="mt-4 w-full text-left">
+      {% include "components/form_errors.html" %}
+      {% include "components/field.html" with field=form.data_fim %}
+    </div>
+  </div>
+  <div class="flex gap-2 p-5">
+    <button class="btn-ghost flex-1" type="button" data-close-modal>Manter</button>
+    <button class="btn-danger flex-1" type="submit">Encerrar</button>
+  </div>
+</form>

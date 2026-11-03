@@ -184,7 +184,10 @@ class ReceberReservaView(TenantRequiredMixin, ModalResponseMixin, FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
-        return {"valor": self.reserva.conta.saldo, "incluir_comanda": True}
+        valor = self.reserva.conta.saldo
+        if self.reserva.is_pending:
+            valor = min(valor, max(self.reserva.valor_sinal - self.reserva.valor_pago, 0))
+        return {"valor": valor, "incluir_comanda": True}
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

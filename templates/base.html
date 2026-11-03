@@ -23,6 +23,8 @@
       <a class="nav-side {% nav_active '/agenda' %}" href="{% url 'agenda:day' %}">{% include "components/icon.html" with name="calendar" %} Agenda</a>
       <a class="nav-side {% nav_active '/pdv' %}" href="{% url 'pdv:home' %}">{% include "components/icon.html" with name="cart" %} PDV</a>
       <a class="nav-side {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
+      <a class="nav-side {% nav_active '/agenda/mensalistas' %}" href="{% url 'agenda:mensalistas' %}">{% include "components/icon.html" with name="repeat" %} Mensalistas</a>
+      <a class="nav-side {% nav_active '/whatsapp' %}" href="{% url 'whatsapp:conversas' %}">{% include "components/icon.html" with name="message" %} WhatsApp</a>
       {% if request.user.is_manager %}
       <a class="nav-side {% nav_active '/estoque' %}" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
       <a class="nav-side {% nav_active '/financeiro' '/relatorios' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Financeiro</a>
@@ -83,8 +85,10 @@
     <a class="nav-bottom {% nav_active '/pdv' %}" href="{% url 'pdv:home' %}">{% include "components/icon.html" with name="cart" %} PDV</a>
     <a class="nav-bottom {% nav_active '/clientes' %}" href="{% url 'clientes:list' %}">{% include "components/icon.html" with name="users" %} Clientes</a>
     <div class="relative flex flex-1" x-data="{ open: false }" @click.outside="open = false">
-      <button type="button" class="nav-bottom {% nav_active '/estoque' '/financeiro' '/relatorios' '/espacos' '/ajustes' '/conta' %}" :aria-expanded="open" aria-expanded="false" @click="open = !open">{% include "components/icon.html" with name="more" %} Mais</button>
+      <button type="button" class="nav-bottom {% nav_active '/estoque' '/financeiro' '/relatorios' '/espacos' '/ajustes' '/conta' '/whatsapp' %}" :aria-expanded="open" aria-expanded="false" @click="open = !open">{% include "components/icon.html" with name="more" %} Mais</button>
       <div class="nav-more" x-show="open" x-cloak>
+        <a class="nav-side" href="{% url 'agenda:mensalistas' %}">{% include "components/icon.html" with name="repeat" %} Mensalistas</a>
+        <a class="nav-side" href="{% url 'whatsapp:conversas' %}">{% include "components/icon.html" with name="message" %} WhatsApp</a>
         <a class="nav-side" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} {% if request.user.is_manager %}Financeiro{% else %}Caixa{% endif %}</a>
         {% if request.user.is_manager %}
         <a class="nav-side" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>

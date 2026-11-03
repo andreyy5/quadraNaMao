@@ -1,6 +1,8 @@
 <h1 class="mb-4">Ajustes</h1>
 <nav class="mb-5 flex gap-1 overflow-x-auto" aria-label="Seções de ajustes">
   <a class="tab {% if active == 'estabelecimento' %}is-active{% endif %}" href="{% url 'estabelecimentos:ajustes' %}">Estabelecimento</a>
+  <a class="tab {% if active == 'online' %}is-active{% endif %}" href="{% url 'estabelecimentos:reservas_online' %}">Reservas online</a>
+  <a class="tab {% if active == 'whatsapp' %}is-active{% endif %}" href="{% url 'estabelecimentos:whatsapp' %}">WhatsApp</a>
   <a class="tab {% if active == 'equipe' %}is-active{% endif %}" href="{% url 'contas:equipe' %}">Equipe</a>
   <a class="tab {% if active == 'senha' %}is-active{% endif %}" href="{% url 'contas:senha' %}">Senha</a>
 </nav>

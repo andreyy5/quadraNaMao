@@ -1,3 +1,5 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 from .base import env
 
@@ -18,3 +20,7 @@ STORAGES = {
 }
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+
+# O Pix simulado confirma pagamento sem dinheiro nenhum: só serve para desenvolvimento e testes.
+if PIX_PROVIDER == "simulado":  # noqa: F405
+    raise ImproperlyConfigured("PIX_PROVIDER=simulado não pode ser usado em produção.")
