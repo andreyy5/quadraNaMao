@@ -232,6 +232,7 @@ No cadastro de cada espaço, preencha **Modalidades** separadas por vírgula. Es
 | `B` | Bloquear horário, na agenda |
 | `←` e `→` | Dia ou semana anterior e seguinte, na agenda |
 | `T` | Voltar para hoje, na agenda |
+| `[` | Recolher ou expandir o menu lateral (o sistema lembra a escolha) |
 
 ## Testes e qualidade
 
