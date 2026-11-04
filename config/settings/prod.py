@@ -19,7 +19,6 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
-EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 
 # O Pix simulado confirma pagamento sem dinheiro nenhum: só serve para desenvolvimento e testes.
 if PIX_PROVIDER == "simulado":  # noqa: F405

@@ -31,8 +31,9 @@ from apps.whatsapp.services import notify_reservation
 
 SLUG = "arena-demo"
 ESPACOS = [
-    ("Areia 1", Espaco.Tipo.AREIA, "Beach tênis, futevôlei", Decimal("90")),
-    ("Areia 2", Espaco.Tipo.AREIA, "Vôlei de praia", Decimal("90")),
+    # As duas areias atendem as mesmas modalidades: na reserva por modalidade, o sistema escolhe a melhor.
+    ("Areia 1", Espaco.Tipo.AREIA, "Beach tênis, futevôlei, vôlei de praia", Decimal("90")),
+    ("Areia 2", Espaco.Tipo.AREIA, "Beach tênis, futevôlei, vôlei de praia", Decimal("90")),
     ("Society", Espaco.Tipo.CAMPO, "Fut7", Decimal("180")),
     ("Ginásio", Espaco.Tipo.QUADRA, "Futsal", Decimal("150")),
 ]
@@ -270,12 +271,15 @@ class Command(BaseCommand):
             add_to_tab(tenant, reserva, {produtos["Cerveja long neck"]: 4}, usuario=owner)
 
     def _seed_online(self, tenant, owner):
-        """Fases 2 e 5: link público com sinal por Pix, WhatsApp em modo de teste e mensalistas."""
+        """Fases 2 e 5: link público com sinal por Pix, mensalistas e, com o módulo ligado, WhatsApp."""
         tenant.reserva_online_ativa = True
         tenant.chave_pix = "pix@arena-demo.local"
         tenant.pix_cidade = "Sao Paulo"
-        tenant.whatsapp_ativo = True
+        tenant.whatsapp_ativo = settings.WHATSAPP_ENABLED
         tenant.save()
+        Espaco.all_tenants.filter(estabelecimento=tenant, tipo=Espaco.Tipo.AREIA).update(
+            modalidades="Beach tênis, futevôlei, vôlei de praia"
+        )
         # Sinal só no horário nobre, como costuma ser.
         TabelaPreco.all_tenants.filter(espaco__estabelecimento=tenant, hora_inicio=time(18)).update(
             valor_sinal=Decimal("30")
@@ -307,6 +311,19 @@ class Command(BaseCommand):
                 dia_vencimento=10,
             )
             create_mensalista(mensalista, owner)
+        if settings.WHATSAPP_ENABLED:
+            self._seed_whatsapp(tenant, clientes, today)
+        # Um pedido pelo link esperando o Pix do sinal: o sistema escolhe a areia.
+        inicio = datetime.combine(today + timedelta(days=1), time(18), tzinfo=tenant.timezone)
+        areias = [espacos["Areia 1"], espacos["Areia 2"]]
+        try:
+            online.book_online(
+                tenant, areias, inicio, "Paula Mendes", "11987650006", modalidade="Beach tênis"
+            )
+        except online.OnlineBookingError:
+            pass
+
+    def _seed_whatsapp(self, tenant, clientes, today):
         # Confirmações que já saíram (no modo de teste, só ficam no histórico) e uma conversa aberta.
         reservas = Reserva.all_tenants.filter(
             estabelecimento=tenant,
@@ -328,12 +345,6 @@ class Command(BaseCommand):
             status=Mensagem.Status.RECEBIDA,
             wa_id=f"demo-{secrets.token_hex(6)}",
         )
-        # Um pedido pelo link esperando o Pix do sinal.
-        inicio = datetime.combine(today + timedelta(days=1), time(18), tzinfo=tenant.timezone)
-        try:
-            online.book_online(tenant, espacos["Areia 2"], inicio, "Paula Mendes", "11987650006", True)
-        except online.OnlineBookingError:
-            pass
 
     def _delete(self, tenant):
         # Pagamento e lançamento primeiro: eles protegem a venda, a reserva e as contas a que se referem.

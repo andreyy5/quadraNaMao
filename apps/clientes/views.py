@@ -1,5 +1,6 @@
 import unicodedata
 
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect
@@ -98,12 +99,6 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                 "terms": "horario fixo",
             },
             {
-                "label": "WhatsApp",
-                "icon": "message",
-                "url": reverse("whatsapp:conversas"),
-                "terms": "mensagens",
-            },
-            {
                 "label": "Novo cliente",
                 "icon": "users",
                 "url": reverse("clientes:create"),
@@ -117,6 +112,15 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                 "terms": "",
             },
         ]
+        if settings.WHATSAPP_ENABLED:
+            actions.append(
+                {
+                    "label": "WhatsApp",
+                    "icon": "message",
+                    "url": reverse("whatsapp:conversas"),
+                    "terms": "mensagens",
+                }
+            )
         if self.request.user.is_manager:
             actions += [
                 {

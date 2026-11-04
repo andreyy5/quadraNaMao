@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import TemplateView
@@ -49,9 +50,13 @@ class DashboardView(TenantRequiredMixin, TemplateView):
         avisos = {
             "mensalistas": MensalistaAviso.objects.filter(resolvido=False, data__gte=today).count(),
             "pendentes": Reserva.objects.filter(status=Reserva.Status.PENDENTE).count(),
-            "whatsapp": Mensagem.objects.filter(
-                status=Mensagem.Status.FALHOU, criado_em__gte=timezone.now() - timedelta(days=7)
-            ).count(),
+            "whatsapp": (
+                Mensagem.objects.filter(
+                    status=Mensagem.Status.FALHOU, criado_em__gte=timezone.now() - timedelta(days=7)
+                ).count()
+                if settings.WHATSAPP_ENABLED
+                else 0
+            ),
             "pix_atrasado": Pagamento.objects.filter(status=Pagamento.Status.PAGO_ATRASADO).count(),
         }
         return avisos if any(avisos.values()) else None

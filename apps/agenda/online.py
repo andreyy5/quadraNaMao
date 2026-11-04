@@ -1,8 +1,9 @@
 """Reserva pelo link público e o sinal por Pix.
 
-O cliente escolhe um horário livre, informa nome e WhatsApp e, se a faixa de preço tiver sinal e o
-estabelecimento tiver chave Pix, a reserva nasce pendente, com prazo para pagar. Pago o sinal, ela é
-confirmada; vencido o prazo, é cancelada e o horário volta a ficar livre.
+O cliente escolhe a modalidade e um horário livre, e o sistema escolhe o espaço (o que deixa a
+agenda mais arrumada). Se a faixa de preço tiver sinal e o estabelecimento tiver chave Pix, a reserva
+nasce pendente, com prazo para pagar. Pago o sinal, ela é confirmada; vencido o prazo, é cancelada e o
+horário volta a ficar livre.
 """
 
 from datetime import datetime, timedelta
@@ -16,13 +17,21 @@ from django.utils import timezone
 
 from apps.clientes.services import find_or_create_client
 from apps.espacos.models import Espaco
-from apps.espacos.services import load_schedule
+from apps.espacos.services import load_schedule, modality_groups
 from apps.financeiro.models import ContaReceber, FormaPagamento, Pagamento
 from apps.financeiro.services import create_pix_charge, online_register, receive_account
 from apps.whatsapp.services import notify_reservation
 
 from .models import Reserva
-from .services import confirm_reservation, create_reservation, expire_pending_reservations, free_starts
+from .services import (
+    ReservationConflict,
+    SpaceBlocked,
+    confirm_reservation,
+    create_reservation,
+    expire_pending_reservations,
+    free_starts,
+    rank_spaces,
+)
 
 BOOKING_DAYS_AHEAD = 30
 TOKEN_SALT = "pagamento-pix"
@@ -33,7 +42,15 @@ class OnlineBookingError(Exception):
 
 
 def public_spaces(estabelecimento):
-    return list(Espaco.all_tenants.filter(estabelecimento=estabelecimento, ativo=True))
+    return list(
+        Espaco.all_tenants.filter(estabelecimento=estabelecimento, ativo=True).select_related(
+            "estabelecimento"
+        )
+    )
+
+
+def public_modalities(estabelecimento):
+    return modality_groups(public_spaces(estabelecimento))
 
 
 def booking_days(estabelecimento):
@@ -52,6 +69,35 @@ def public_starts(espaco, day):
     if day not in booking_days(espaco.estabelecimento):
         return []
     return free_starts(espaco, day, slot_minutes(espaco, day))
+
+
+def modality_starts(espacos, day):
+    """Inícios livres em pelo menos um dos espaços da modalidade, cada um com a sua grade."""
+    starts = set()
+    for espaco in espacos:
+        starts.update(public_starts(espaco, day))
+    return sorted(starts)
+
+
+def _options(espacos, inicio):
+    """Os espaços em que o horário está livre, cada um com a duração da sua grade."""
+    options = []
+    for espaco in espacos:
+        day = inicio.astimezone(espaco.estabelecimento.timezone).date()
+        if inicio in public_starts(espaco, day):
+            options.append((espaco, inicio, inicio + timedelta(minutes=slot_minutes(espaco, day))))
+    return options
+
+
+def preview(espacos, inicio):
+    """Onde o jogo cairia e quanto custa, para o cliente ver antes de confirmar. None se não há vaga."""
+    ranked = rank_spaces(_options(espacos, inicio))
+    if not ranked:
+        return None
+    espaco, inicio, fim = ranked[0]
+    valor = load_schedule(espaco).quote(inicio, fim) or Decimal("0")
+    sinal = deposit_for(espaco, inicio) if espaco.estabelecimento.chave_pix else Decimal("0")
+    return {"espaco": espaco, "inicio": inicio, "fim": fim, "valor": valor, "sinal": sinal}
 
 
 def deposit_for(espaco, inicio):
@@ -81,18 +127,21 @@ def payment_url(pagamento):
 
 
 @transaction.atomic
-def book_online(estabelecimento, espaco, inicio, nome, telefone, aceite_whatsapp=False):
-    """Cria a reserva do link público. Devolve (reserva, pagamento); sem sinal, o pagamento é None."""
+def book_online(estabelecimento, espacos, inicio, nome, telefone, aceite_whatsapp=False, modalidade=""):
+    """Cria a reserva do link público no melhor espaço entre `espacos` (os da modalidade escolhida).
+
+    Devolve (reserva, pagamento); sem sinal, o pagamento é None.
+    """
     if not estabelecimento.reserva_online_ativa:
         raise OnlineBookingError("Este estabelecimento não está recebendo reservas pelo link agora.")
-    if espaco.estabelecimento_id != estabelecimento.pk or not espaco.ativo:
-        raise OnlineBookingError("Escolha um dos espaços da lista.")
+    if not espacos or any(e.estabelecimento_id != estabelecimento.pk or not e.ativo for e in espacos):
+        raise OnlineBookingError("Escolha uma das modalidades da lista.")
     if not nome.strip():
         raise OnlineBookingError("Informe seu nome.")
 
     expire_pending_reservations(estabelecimento)
-    local_day = inicio.astimezone(estabelecimento.timezone).date()
-    if inicio not in public_starts(espaco, local_day):
+    options = _options(espacos, inicio)
+    if not options:
         raise OnlineBookingError("Esse horário acabou de ser ocupado. Escolha outro.")
 
     cliente = find_or_create_client(estabelecimento, nome, telefone)
@@ -104,10 +153,21 @@ def book_online(estabelecimento, espaco, inicio, nome, telefone, aceite_whatsapp
             "Você já tem uma reserva aguardando o pagamento do sinal. Pague ou espere o prazo."
         )
 
-    fim = inicio + timedelta(minutes=slot_minutes(espaco, local_day))
+    for espaco, inicio, fim in rank_spaces(options):
+        try:
+            with transaction.atomic():
+                return _book(estabelecimento, espaco, cliente, inicio, fim, modalidade)
+        except (ReservationConflict, SpaceBlocked):
+            continue  # outro pedido levou esse espaço agora: tenta o próximo
+    raise OnlineBookingError("Esse horário acabou de ser ocupado. Escolha outro.")
+
+
+def _book(estabelecimento, espaco, cliente, inicio, fim, modalidade):
     sinal = deposit_for(espaco, inicio)
     if sinal <= 0 or not estabelecimento.chave_pix:
-        reserva = create_reservation(espaco, cliente, inicio, fim, origem=Reserva.Origem.ONLINE)
+        reserva = create_reservation(
+            espaco, cliente, inicio, fim, origem=Reserva.Origem.ONLINE, modalidade=modalidade
+        )
         return reserva, None
 
     expira_em = timezone.now() + timedelta(minutes=estabelecimento.prazo_sinal_minutos)
@@ -120,6 +180,7 @@ def book_online(estabelecimento, espaco, inicio, nome, telefone, aceite_whatsapp
         status=Reserva.Status.PENDENTE,
         expira_em=expira_em,
         valor_sinal=sinal,
+        modalidade=modalidade,
     )
     pagamento = create_pix_charge(reserva, sinal, expira_em)
     url = payment_url(pagamento)

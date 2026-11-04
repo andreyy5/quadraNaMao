@@ -16,15 +16,16 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Tem
 from apps.clientes.models import Cliente
 from apps.clientes.services import find_or_create_client, format_phone
 from apps.espacos.models import Espaco
-from apps.espacos.services import load_schedule
+from apps.espacos.services import load_schedule, modality_groups
 from apps.estabelecimentos.mixins import ModalResponseMixin, TenantRequiredMixin
 from apps.estabelecimentos.templatetags.ui import brl
 from apps.financeiro.models import ContaReceber, Pagamento
+from apps.whatsapp.services import enabled as whatsapp_enabled
 from apps.whatsapp.services import notify_block
 
 from . import mensalistas as mensalista_services
 from . import services
-from .forms import BloqueioForm, EndMensalistaForm, MensalistaForm, ReservaForm
+from .forms import BloqueioForm, EndMensalistaForm, MensalistaForm, ReservaForm, initial_modality
 from .models import Bloqueio, Mensalista, MensalistaAviso, Reserva
 
 AGENDA_URL = reverse_lazy("agenda:day")
@@ -109,11 +110,14 @@ class ReservaFormMixin(TenantRequiredMixin, ModalResponseMixin):
                 cliente = data["cliente"] or find_or_create_client(
                     self.request.tenant, data["cliente_nome"], data["cliente_telefone"]
                 )
-                self.persist(data, cliente)
+                reserva = self.persist(data, cliente)
         except services.ReservationError as exc:
             form.add_error(None, str(exc))
             return self.form_invalid(form)
-        return self.modal_success(self.success_message, AGENDA_URL)
+        message = self.success_message
+        if data["espaco"] is None:
+            message = f"{message.rstrip('.')} em {reserva.espaco.nome}."
+        return self.modal_success(message, AGENDA_URL)
 
 
 class ReservaCreateView(ReservaFormMixin, FormView):
@@ -121,14 +125,16 @@ class ReservaCreateView(ReservaFormMixin, FormView):
 
     def get_initial(self):
         params = self.request.GET
-        espaco = None
-        if params.get("espaco", "").isdigit():
-            espaco = (
-                Espaco.objects.filter(pk=params["espaco"], ativo=True)
-                .select_related("estabelecimento")
-                .first()
-            )
-        espaco = espaco or Espaco.objects.filter(ativo=True).select_related("estabelecimento").first()
+        espacos = list(Espaco.objects.filter(ativo=True).select_related("estabelecimento"))
+        groups = modality_groups(espacos)
+        # Clicou num horário da grade: o espaço já está escolhido. Pelo botão, abre no "Automático".
+        espaco = next((e for e in espacos if str(e.pk) == params.get("espaco", "")), None)
+        modalidade = initial_modality(groups, espaco)
+        grupo = next((g for g in groups if g.key == modalidade), None)
+        if espaco is None and not (grupo and grupo.automatic):
+            espaco = espacos[0] if espacos else None
+            modalidade = initial_modality(groups, espaco)
+        candidates = [espaco] if espaco else grupo.espacos if grupo else []
 
         now = timezone.localtime()
         day = _parse_day(params.get("data"))
@@ -137,10 +143,10 @@ class ReservaCreateView(ReservaFormMixin, FormView):
         except ValueError:
             hour = None
         hour = hour or (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0).time()
-        initial = {"espaco": espaco, "data": day, "hora": hour}
+        initial = {"espaco": espaco, "modalidade": modalidade, "data": day, "hora": hour}
 
-        if espaco:
-            schedule = load_schedule(espaco)
+        if candidates:
+            schedule = load_schedule(candidates[0])
             start = datetime.combine(day, hour, tzinfo=timezone.get_current_timezone())
             minutes = params.get("minutos", "")
             duration = (
@@ -150,11 +156,13 @@ class ReservaCreateView(ReservaFormMixin, FormView):
             )
             initial["duracao"] = duration
             if not params.get("hora"):
-                free = services.free_starts(espaco, day, duration)
+                free = services.free_starts_any(candidates, day, duration)
                 if free:
                     start = free[0]
                     initial["hora"] = start.time()
-            quote = schedule.quote(start, start + timedelta(minutes=duration))
+            end = start + timedelta(minutes=duration)
+            ranked = services.rank_spaces([(e, start, end) for e in candidates])
+            quote = services.quote_price(ranked[0][0] if ranked else candidates[0], start, end)
             if quote is not None:
                 initial["valor_total"] = quote
 
@@ -184,15 +192,15 @@ class ReservaCreateView(ReservaFormMixin, FormView):
         return context
 
     def persist(self, data, cliente):
-        return services.create_reservation(
-            data["espaco"],
-            cliente,
-            data["inicio"],
-            data["fim"],
-            valor_total=data["valor_total"],
-            observacoes=data["observacoes"],
-            usuario=self.request.user,
-        )
+        kwargs = {
+            "valor_total": data["valor_total"],
+            "observacoes": data["observacoes"],
+            "usuario": self.request.user,
+            "modalidade": data["modalidade_label"],
+        }
+        if data["espaco"] is None:
+            return services.create_reservation_auto(data["options"], cliente, **kwargs)
+        return services.create_reservation(data["espaco"], cliente, data["inicio"], data["fim"], **kwargs)
 
 
 class ReservaUpdateView(ReservaFormMixin, FormView):
@@ -209,7 +217,9 @@ class ReservaUpdateView(ReservaFormMixin, FormView):
     def get_initial(self):
         reserva = self.reserva
         inicio = timezone.localtime(reserva.inicio)
+        groups = modality_groups(Espaco.objects.filter(ativo=True).select_related("estabelecimento"))
         return {
+            "modalidade": initial_modality(groups, reserva.espaco, reserva.modalidade),
             "espaco": reserva.espaco,
             "data": inicio.date(),
             "hora": inicio.time(),
@@ -227,18 +237,25 @@ class ReservaUpdateView(ReservaFormMixin, FormView):
         return context
 
     def persist(self, data, cliente):
+        espaco = data["espaco"]
+        if espaco is None:
+            ranked = services.rank_spaces(data["options"], ignore=self.reserva)
+            if not ranked:
+                raise services.NoSpaceAvailable(data["modalidade_label"])
+            espaco = ranked[0][0]
         valor = data["valor_total"]
         if valor is None:
-            valor = services.quote_price(data["espaco"], data["inicio"], data["fim"]) or Decimal("0")
+            valor = services.quote_price(espaco, data["inicio"], data["fim"]) or Decimal("0")
         return services.update_reservation(
             self.reserva,
-            data["espaco"],
+            espaco,
             cliente,
             data["inicio"],
             data["fim"],
             valor,
             observacoes=data["observacoes"],
             usuario=self.request.user,
+            modalidade=data["modalidade_label"] or None,
         )
 
 
@@ -256,6 +273,11 @@ class ReservaQuoteView(TenantRequiredMixin, TemplateView):
         data = form.cleaned_data
         if data.get("espaco") and data.get("inicio"):
             quote = services.quote_price(data["espaco"], data["inicio"], data["fim"])
+        elif data.get("options"):
+            # Automático: o preço do espaço que seria escolhido (ou do primeiro, se nenhum está livre).
+            ranked = services.rank_spaces(data["options"])
+            espaco, inicio, fim = ranked[0] if ranked else data["options"][0]
+            quote = services.quote_price(espaco, inicio, fim)
         context["field"] = ReservaForm(initial={"valor_total": quote})["valor_total"]
         return context
 
@@ -271,21 +293,27 @@ class ReservaSlotsView(TenantRequiredMixin, TemplateView):
         form = ReservaForm(params)
         form.is_valid()
         data = form.cleaned_data
-        if not (data.get("espaco") and data.get("data") and data.get("duracao")):
+        espaco, grupo = data.get("espaco"), data.get("grupo")
+        if not ((espaco or grupo) and data.get("data") and data.get("duracao")):
             return context
         ignore = (
             Reserva.objects.filter(pk=params["reserva"]).first()
             if params.get("reserva", "").isdigit()
             else None
         )
-        starts = services.free_starts(data["espaco"], data["data"], data["duracao"], ignore=ignore)
+        espacos = [espaco] if espaco else grupo.espacos
+        starts = services.free_starts_any(espacos, data["data"], data["duracao"], ignore=ignore)
         context["ready"] = True
         context["hora"] = f"{data['hora']:%H:%M}" if data.get("hora") else ""
         context["slots"] = [f"{start:%H:%M}" for start in starts]
-        if data.get("inicio"):
-            context["problem"] = services.slot_problem(
-                data["espaco"], data["inicio"], data["fim"], ignore=ignore
-            )
+        if data.get("inicio") and espaco:
+            context["problem"] = services.slot_problem(espaco, data["inicio"], data["fim"], ignore=ignore)
+        elif data.get("inicio"):
+            ranked = services.rank_spaces(data["options"], ignore=ignore)
+            if ranked:
+                context["destino"] = ranked[0][0]
+            else:
+                context["problem"] = str(services.NoSpaceAvailable(data["modalidade_label"]))
         return context
 
 
@@ -407,7 +435,7 @@ class BloqueioImpactView(TenantRequiredMixin, TemplateView):
             raise Http404
         context["bloqueios"] = bloqueios
         context["reservas"] = services.affected_reservations(bloqueios)
-        context["whatsapp_ativo"] = self.request.tenant.whatsapp_ativo
+        context["whatsapp_ativo"] = whatsapp_enabled(self.request.tenant)
         return context
 
 
@@ -417,6 +445,8 @@ class BloqueioAvisarView(TenantRequiredMixin, View):
     http_method_names = ["post"]
 
     def post(self, request):
+        if not whatsapp_enabled(request.tenant):
+            raise Http404
         ids = [value for value in request.POST.get("ids", "").split(",") if value.isdigit()]
         bloqueios = list(Bloqueio.objects.filter(pk__in=ids).select_related("espaco"))
         if not bloqueios:

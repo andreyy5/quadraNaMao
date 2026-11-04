@@ -19,8 +19,17 @@ from .tasks import process_webhook
 WEBHOOK_LIMIT_PER_MINUTE = 600
 
 
+class ModuleEnabledMixin:
+    """Com o módulo em espera (WHATSAPP_ENABLED desligado), as telas e o webhook não existem."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not settings.WHATSAPP_ENABLED:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+
 @method_decorator(csrf_exempt, name="dispatch")
-class WebhookView(View):
+class WebhookView(ModuleEnabledMixin, View):
     """Endereço cadastrado no painel da Meta. A verificação usa o token; os avisos, a assinatura."""
 
     http_method_names = ["get", "post"]
@@ -45,7 +54,7 @@ class WebhookView(View):
         return HttpResponse("ok")
 
 
-class ConversasView(TenantRequiredMixin, TemplateView):
+class ConversasView(ModuleEnabledMixin, TenantRequiredMixin, TemplateView):
     template_name = "whatsapp/conversas.html"
 
     def get_context_data(self, **kwargs):
@@ -56,7 +65,7 @@ class ConversasView(TenantRequiredMixin, TemplateView):
         return context
 
 
-class ConversaView(TenantRequiredMixin, TemplateView):
+class ConversaView(ModuleEnabledMixin, TenantRequiredMixin, TemplateView):
     template_name = "whatsapp/conversa.html"
 
     def dispatch(self, request, *args, **kwargs):

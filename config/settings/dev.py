@@ -7,7 +7,6 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Em desenvolvimento, a página de pagamento tem um botão que simula o aviso do provedor de Pix.
 PIX_PROVIDER = env("PIX_PROVIDER", default="simulado")  # noqa: F405

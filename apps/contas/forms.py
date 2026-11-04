@@ -1,6 +1,12 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    PasswordChangeForm,
+    PasswordResetForm,
+    SetPasswordForm,
+)
 from django.contrib.auth.password_validation import validate_password
+from django.template import loader
 
 from apps.estabelecimentos.forms import StyledFormMixin
 
@@ -23,6 +29,38 @@ class LoginForm(StyledFormMixin, AuthenticationForm):
 
 
 class SenhaForm(StyledFormMixin, PasswordChangeForm):
+    pass
+
+
+class SenhaEsqueciForm(StyledFormMixin, PasswordResetForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].label = "E-mail"
+        self.fields["email"].widget.attrs.update(
+            {"autocomplete": "email", "inputmode": "email", "data-autofocus": "true"}
+        )
+
+    def send_mail(
+        self,
+        subject_template_name,
+        email_template_name,
+        context,
+        from_email,
+        to_email,
+        html_email_template_name=None,
+    ):
+        """Monta o e-mail aqui e deixa o envio para o Celery (ver tasks.send_email)."""
+        from .tasks import send_email
+
+        subject = "".join(loader.render_to_string(subject_template_name, context).splitlines())
+        body = loader.render_to_string(email_template_name, context)
+        html = (
+            loader.render_to_string(html_email_template_name, context) if html_email_template_name else None
+        )
+        send_email.delay(subject, body, from_email, [to_email], html)
+
+
+class SenhaNovaForm(StyledFormMixin, SetPasswordForm):
     pass
 
 

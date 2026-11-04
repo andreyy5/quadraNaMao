@@ -40,6 +40,10 @@ class EspacoForm(StyledFormMixin, forms.ModelForm):
             "tipo": forms.RadioSelect,
             "nome": forms.TextInput(attrs={"placeholder": "Ex.: Quadra 1"}),
         }
+        help_texts = {
+            "modalidades": 'Separe por vírgula, como "beach tênis, futevôlei". Espaços com a mesma '
+            "modalidade são tratados como iguais: na reserva por modalidade, o sistema escolhe o melhor livre."
+        }
 
 
 class HorarioDiaForm(StyledFormMixin, forms.Form):

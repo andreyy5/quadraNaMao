@@ -1,7 +1,8 @@
+{% if modalidade.automatic %}<p class="mb-2 text-xs text-muted">Você escolhe o horário e a gente separa o espaço livre.</p>{% endif %}
 {% if starts %}
 <div class="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
   {% for start in starts %}
-  <button type="button" class="time-chip" :class="{ 'is-selected': hora === '{{ start|time:'H:i' }}' }" @click="hora = '{{ start|time:'H:i' }}'; document.getElementById('campo-espaco').value = '{{ espaco.pk }}'; document.getElementById('campo-data').value = '{{ day|date:'Y-m-d' }}'">{{ start|time:"H:i" }}</button>
+  <button type="button" class="time-chip" :class="{ 'is-selected': hora === '{{ start|time:'H:i' }}' }" @click="hora = '{{ start|time:'H:i' }}'; document.getElementById('campo-modalidade').value = '{{ modalidade.key }}'; document.getElementById('campo-data').value = '{{ day|date:'Y-m-d' }}'" hx-get="{% url 'publico:previa' estabelecimento.slug %}?modalidade={{ modalidade.key|urlencode }}&amp;data={{ day|date:'Y-m-d' }}&amp;hora={{ start|time:'H:i' }}" hx-target="#previa" hx-swap="innerHTML">{{ start|time:"H:i" }}</button>
   {% endfor %}
 </div>
 {% else %}

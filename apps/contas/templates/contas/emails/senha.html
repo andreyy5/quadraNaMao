@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Senha nova</title></head>
+<body style="margin:0;padding:0;background:#f2f5f9;font-family:Arial,Helvetica,sans-serif;color:#0b101a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f5f9;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:16px;padding:32px;">
+        <tr><td style="font-size:20px;font-weight:bold;padding-bottom:20px;">{{ PRODUCT_NAME }}</td></tr>
+        <tr><td style="font-size:16px;line-height:24px;padding-bottom:12px;">Olá, {{ user.get_short_name }}!</td></tr>
+        <tr><td style="font-size:15px;line-height:23px;color:#3b4656;padding-bottom:24px;">Recebemos um pedido para criar uma senha nova na sua conta. O botão abaixo vale por {{ validade_horas }} hora{{ validade_horas|pluralize }} e só funciona uma vez.</td></tr>
+        <tr><td style="padding-bottom:24px;">
+          <a href="{{ protocol }}://{{ domain }}{% url 'contas:senha_redefinir' uidb64=uid token=token %}" style="display:inline-block;background:#0e9eb8;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:13px 22px;border-radius:12px;">Criar senha nova</a>
+        </td></tr>
+        <tr><td style="font-size:13px;line-height:20px;color:#5b6676;padding-bottom:6px;">Se o botão não abrir, copie este endereço no navegador:</td></tr>
+        <tr><td style="font-size:13px;line-height:20px;color:#0b101a;word-break:break-all;padding-bottom:24px;">{{ protocol }}://{{ domain }}{% url 'contas:senha_redefinir' uidb64=uid token=token %}</td></tr>
+        <tr><td style="font-size:13px;line-height:20px;color:#5b6676;border-top:1px solid #e3e8ef;padding-top:16px;">Se não foi você, ignore este e-mail: sua senha continua a mesma.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

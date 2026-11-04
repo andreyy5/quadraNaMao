@@ -1,0 +1,23 @@
+{% extends "base_html.html" %}
+
+{% block body %}
+<main class="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 py-10" data-theme="areia">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" class="login-court neon-art pointer-events-none absolute left-1/2 top-1/2 -z-10 w-[min(150vw,1100px)] max-w-none -translate-x-1/2 -translate-y-1/2 text-primary opacity-[.16]" fill="none" stroke="currentColor" stroke-width=".5" aria-hidden="true">
+    <rect x="6" y="6" width="308" height="188" rx="4" pathLength="1"/>
+    <path d="M160 6v188" pathLength="1"/>
+    <circle cx="160" cy="100" r="30" pathLength="1"/>
+    <path d="M6 44c56 0 72 26 72 56s-16 56-72 56" pathLength="1"/>
+    <path d="M314 44c-56 0-72 26-72 56s16 56 72 56" pathLength="1"/>
+  </svg>
+  <div class="w-full max-w-sm">
+    <div class="mb-7 flex flex-col items-center text-center">
+      <span class="flicker">{% include "components/wordmark.html" with class="text-[30px]" mark_class="h-8 w-8" %}</span>
+      <p class="mt-2 text-sm text-muted">{% block tagline %}Sua agenda de quadras, sem caderno.{% endblock %}</p>
+    </div>
+    <div class="card flex flex-col gap-4 bg-surface/90 p-6 backdrop-blur-sm" style="box-shadow:0 0 44px rgb(var(--color-primary) / calc(var(--glow) * .16))">
+      {% block card %}{% endblock %}
+    </div>
+    {% block below %}{% endblock %}
+  </div>
+</main>
+{% endblock %}

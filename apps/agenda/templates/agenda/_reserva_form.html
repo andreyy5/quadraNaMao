@@ -46,15 +46,34 @@
     </section>
 
     <div id="reserva-when" class="flex flex-col gap-5" x-show="editing" hx-get="{% url 'agenda:reserva_quote' %}" hx-trigger="change" hx-include="this" hx-target="#valor-field" hx-swap="innerHTML">
+      {% if form.auto_available %}
+      <fieldset @change="onModalidade($event)">
+        <legend class="label">{{ form.modalidade.label }}</legend>
+        <div class="flex flex-wrap gap-1.5">
+          {% for card in form.modalidade_cards %}
+          <label class="chip" data-theme="{{ card.grupo.tema }}" data-count="{{ card.grupo.espacos|length }}">{{ card.widget.tag }} {{ card.widget.choice_label }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endif %}
+
       <fieldset>
         <legend class="label">{{ form.espaco.label }}</legend>
         <div class="grid grid-cols-2 gap-2">
-          {% for option in form.espaco %}
-          <label class="choice-card" data-theme="{{ option.data.value.instance.tema }}">
-            {{ option.tag }}
-            {% include "components/illustration.html" with tema=option.data.value.instance.tema class="h-8 w-auto shrink-0" %}
-            <span class="min-w-0 truncate text-sm font-medium">{{ option.choice_label }}</span>
+          {% for card in form.espaco_cards %}
+          {% if card.espaco %}
+          <label class="choice-card" data-theme="{{ card.espaco.tema }}" data-modalidades="{{ card.keys }}" x-show="fits($el)">
+            {{ card.widget.tag }}
+            {% include "components/illustration.html" with tema=card.espaco.tema class="h-8 w-auto shrink-0" %}
+            <span class="min-w-0 truncate text-sm font-medium">{{ card.widget.choice_label }}</span>
           </label>
+          {% elif form.auto_available %}
+          <label class="choice-card" data-auto x-show="autoOk" title="O sistema escolhe o espaço livre que deixa a agenda mais arrumada">
+            {{ card.widget.tag }}
+            <span class="text-primary [&_svg]:h-6 [&_svg]:w-6">{% include "components/icon.html" with name="auto" %}</span>
+            <span class="min-w-0"><span class="block truncate text-sm font-medium">Automático</span><span class="block truncate text-xs text-muted">o melhor livre</span></span>
+          </label>
+          {% endif %}
           {% endfor %}
         </div>
         {% for error in form.espaco.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}

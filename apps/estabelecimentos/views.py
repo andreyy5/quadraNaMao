@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import UpdateView
@@ -46,6 +47,11 @@ class WhatsAppAjustesView(EstabelecimentoUpdateView):
     form_class = WhatsAppAjustesForm
     template_name = "estabelecimentos/whatsapp_form.html"
     success_url = reverse_lazy("estabelecimentos:whatsapp")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not settings.WHATSAPP_ENABLED:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

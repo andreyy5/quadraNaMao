@@ -2,7 +2,7 @@
   {% if problem %}
   <p class="form-alert mb-2 flex items-start gap-2 py-2.5" role="alert"><span class="text-danger [&_svg]:h-4 [&_svg]:w-4">{% include "components/icon.html" with name="alert" %}</span> {{ problem }}</p>
   {% elif hora %}
-  <p class="mb-2 flex items-center gap-1.5 text-xs text-success"><span class="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true"></span> {{ hora }} está livre.</p>
+  <p class="mb-2 flex items-center gap-1.5 text-xs text-success"><span class="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true"></span> <span>{{ hora }} está livre{% if destino %} e vai para <strong class="font-medium">{{ destino.nome }}</strong>{% endif %}.</span></p>
   {% endif %}
   {% if slots %}
   <div class="grid grid-cols-4 gap-1.5 sm:grid-cols-6">

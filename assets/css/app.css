@@ -409,6 +409,7 @@
   .help ul { @apply list-disc space-y-0.5 pl-4; }
   .field-error { @apply mt-1.5 text-sm text-danger; }
   .form-alert { @apply rounded-xl border border-danger/40 bg-danger/10 px-3.5 py-3 text-sm text-text; animation: shake 0.3s ease; }
+  .form-success { @apply rounded-xl border border-success/40 bg-success/10 px-3.5 py-3 text-sm text-text; }
 
   .chip {
     @apply inline-flex min-h-10 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface/60 px-3.5 text-sm text-muted hover:text-text;

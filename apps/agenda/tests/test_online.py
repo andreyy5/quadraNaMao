@@ -38,7 +38,7 @@ def amanha(hour=10):
 
 
 def book(loja, quadra, inicio=None, nome="Lia Souza", telefone="(11) 97777-1111", aceite=False):
-    return online.book_online(loja, quadra, inicio or amanha(), nome, telefone, aceite)
+    return online.book_online(loja, [quadra], inicio or amanha(), nome, telefone, aceite)
 
 
 # --- Pix
@@ -189,7 +189,7 @@ def test_public_page_lists_spaces_and_free_times(client, loja, quadra):
         reverse("publico:reservar", args=[loja.slug]), {"data": amanha().date().isoformat()}
     )
     assert response.status_code == 200
-    assert "Areia 1" in response.content.decode()
+    assert "Areia" in response.content.decode()
     assert amanha() in response.context["starts"]
 
 
@@ -202,7 +202,7 @@ def test_public_page_when_online_booking_is_off(client, tenant):
 def booking_post(client, loja, quadra, inicio=None, **extra):
     inicio = inicio or amanha()
     data = {
-        "espaco": quadra.pk,
+        "modalidade": "areia",
         "data": inicio.date().isoformat(),
         "hora": f"{inicio:%H:%M}",
         "nome": "Lia Souza",
@@ -217,7 +217,6 @@ def test_public_booking_flow_until_payment_is_confirmed(client, loja, quadra):
     response = booking_post(client, loja, quadra)
     assert response.status_code == 302
     pagamento = Pagamento.all_tenants.get()
-    assert pagamento.reserva.cliente.aceite_whatsapp is True
 
     page = client.get(response.url)
     assert "Copiar código Pix" in page.content.decode()
@@ -236,10 +235,12 @@ def test_payment_token_cannot_be_forged_or_used_on_another_establishment(client,
     assert client.get(reverse("publico:pagamento", args=[other_tenant.slug, token])).status_code == 404
 
 
-def test_public_booking_refuses_another_establishments_space(client, loja, quadra, other_tenant):
+def test_public_booking_refuses_another_establishments_modality(client, loja, quadra, other_tenant):
     alheio = make_espaco(other_tenant, "Quadra alheia")
-    response = booking_post(client, loja, alheio)
-    assert "Escolha um dos espaços" in response.content.decode()
+    alheio.modalidades = "Tênis"
+    alheio.save()
+    response = booking_post(client, loja, quadra, modalidade="tenis")
+    assert "Escolha uma das modalidades" in response.content.decode()
     assert not Reserva.all_tenants.exists()
 
 
@@ -261,6 +262,8 @@ def test_pending_booking_shows_on_the_staff_agenda(owner_client, loja, quadra):
 
 
 def test_cancel_modal_explains_the_cancellation_policy(owner_client, loja, quadra, owner):
+    loja.cancelamento_horas = 72  # o jogo é amanhã: fora do prazo a qualquer hora em que o teste rodar
+    loja.save()
     reserva, _ = book(loja, quadra)
     with_register(owner)
     pdv_services.charge_reservation(reserva, D("30"), "PIX", owner)
@@ -274,3 +277,13 @@ def test_cliente_reuses_the_same_record(loja, quadra):
     existente = make_cliente(loja, "Lia", "+5511977771111")
     reserva, _ = book(loja, quadra)
     assert reserva.cliente == existente
+
+
+def test_whatsapp_consent_is_saved_only_when_the_establishment_uses_it(client, loja, quadra):
+    booking_post(client, loja, quadra)
+    assert Reserva.all_tenants.get().cliente.aceite_whatsapp is False
+
+    loja.whatsapp_ativo = True
+    loja.save()
+    booking_post(client, loja, quadra, inicio=amanha(12), telefone="(11) 97777-2222")
+    assert Reserva.all_tenants.get(cliente__telefone="+5511977772222").cliente.aceite_whatsapp is True

@@ -56,6 +56,12 @@ class Reserva(TenantModel):
     expira_em = models.DateTimeField(
         "pagar o sinal até", null=True, blank=True, help_text="Só para reservas pendentes."
     )
+    modalidade = models.CharField(
+        "modalidade",
+        max_length=60,
+        blank=True,
+        help_text="O que vai ser jogado, para a equipe preparar o espaço.",
+    )
     mensalista = models.ForeignKey(
         "agenda.Mensalista",
         on_delete=models.SET_NULL,

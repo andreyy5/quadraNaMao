@@ -78,6 +78,8 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 LOGIN_URL = "contas:login"
+# Link de "esqueci a senha": vale por 2 horas e só funciona uma vez.
+PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
 LOGIN_REDIRECT_URL = "relatorios:dashboard"
 LOGOUT_REDIRECT_URL = "contas:login"
 
@@ -112,6 +114,8 @@ SITE_URL = env("SITE_URL", default="http://127.0.0.1:8000")
 # Pix: "estatico" gera o copia e cola com a chave do estabelecimento; a equipe confirma o pagamento.
 PIX_PROVIDER = env("PIX_PROVIDER", default="estatico")
 
+# Módulo de WhatsApp automático (Fase 5). Em espera: desligado, some do menu e não manda nada.
+WHATSAPP_ENABLED = env.bool("WHATSAPP_ENABLED", default=False)
 # WhatsApp: "console" só registra no histórico; "cloud" usa a Cloud API da Meta (docs/whatsapp.md).
 WHATSAPP_PROVIDER = env("WHATSAPP_PROVIDER", default="console")
 WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
@@ -126,3 +130,11 @@ CACHES = {"default": env.cache_url("CACHE_URL", default="locmemcache://")}
 # Quantos proxies reversos (nginx, balanceador) ficam na frente do Django. Com 0, vale o REMOTE_ADDR.
 # Usado no limite de tentativas: errar aqui faz todo mundo dividir o mesmo limite ou permite burlá-lo.
 NUM_PROXIES = env.int("NUM_PROXIES", default=0)
+
+# E-mail (recuperação de senha). EMAIL_URL no formato do django-environ, por exemplo
+# smtp+tls://usuario:senha@smtp.provedor.com:587 (caracteres especiais da senha codificados, como %40).
+# Sem EMAIL_URL, o e-mail aparece no terminal do servidor.
+vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=f"{PRODUCT_NAME} <nao-responda@localhost>")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_TIMEOUT = 15

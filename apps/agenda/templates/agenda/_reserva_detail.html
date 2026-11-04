@@ -5,7 +5,7 @@
     <div class="ticket">
       <div class="min-w-0">
         <p class="ticket-time">{{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }}</p>
-        <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m/Y" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span></p>
+        <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m/Y" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span>{% if reserva.modalidade %} · {{ reserva.modalidade }}{% endif %}</p>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
         {% include "components/status_badge.html" %}

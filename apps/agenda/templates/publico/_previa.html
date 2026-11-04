@@ -1,0 +1,15 @@
+{% load ui %}
+{% if previa %}
+<div class="ticket" data-theme="{{ previa.espaco.tema }}">
+  <div class="min-w-0">
+    <p class="ticket-time">{{ previa.inicio|time:"H:i" }}–{{ previa.fim|time:"H:i" }}</p>
+    <p class="mt-0.5 truncate text-sm text-muted">{{ modalidade.label }} · <span class="font-medium text-text">{{ previa.espaco.nome }}</span></p>
+  </div>
+  <div class="shrink-0 text-right">
+    <p class="font-semibold tabular-nums">{{ previa.valor|brl }}</p>
+    {% if previa.sinal %}<p class="text-xs text-muted">sinal de {{ previa.sinal|brl }} por Pix</p>{% else %}<p class="text-xs text-muted">pago no local</p>{% endif %}
+  </div>
+</div>
+{% else %}
+<p class="form-alert" role="alert">Esse horário acabou de ser ocupado. Escolha outro.</p>
+{% endif %}

@@ -1,0 +1,11 @@
+{% autoescape off %}Olá, {{ user.get_short_name }}!
+
+Recebemos um pedido para criar uma senha nova na sua conta do {{ PRODUCT_NAME }}.
+Abra o link abaixo para escolher a senha. Ele vale por {{ validade_horas }} hora{{ validade_horas|pluralize }} e só funciona uma vez.
+
+{{ protocol }}://{{ domain }}{% url 'contas:senha_redefinir' uidb64=uid token=token %}
+
+Se não foi você, ignore este e-mail: sua senha continua a mesma.
+
+{{ PRODUCT_NAME }}
+{% endautoescape %}

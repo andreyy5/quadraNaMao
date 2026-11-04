@@ -3,11 +3,13 @@ from datetime import datetime, time, timedelta
 from django import forms
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.clientes.models import Cliente
 from apps.clientes.services import InvalidPhone, normalize_phone
 from apps.espacos.forms import TIME_WIDGET, money_field
 from apps.espacos.models import Espaco
+from apps.espacos.services import modality_groups, space_modalities
 from apps.estabelecimentos.forms import StyledFormMixin
 from apps.estabelecimentos.mixins import TenantFormMixin
 
@@ -26,8 +28,17 @@ DURATION_CHOICES = [
 
 
 class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
+    """Reserva pelo painel. Sem espaço escolhido ("Automático"), vale a modalidade: o sistema escolhe
+    entre os espaços dela o que deixa a agenda mais arrumada."""
+
+    modalidade = forms.ChoiceField(label="Modalidade", required=False, widget=forms.RadioSelect)
     espaco = forms.ModelChoiceField(
-        label="Espaço", queryset=Espaco.objects.none(), empty_label=None, widget=forms.RadioSelect
+        label="Espaço",
+        queryset=Espaco.objects.none(),
+        required=False,
+        blank=True,
+        empty_label="Automático",
+        widget=forms.RadioSelect,
     )
     data = forms.DateField(label="Dia", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
     hora = forms.TimeField(label="Início", widget=forms.TimeInput(attrs=TIME_WIDGET, format="%H:%M"))
@@ -69,7 +80,12 @@ class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["espaco"].queryset = Espaco.objects.filter(ativo=True)
+        self.fields["espaco"].queryset = Espaco.objects.filter(ativo=True).select_related("estabelecimento")
+        self.espacos = list(self.fields["espaco"].queryset)
+        self.modalidades = modality_groups(self.espacos)
+        # Só vale a pena mostrar modalidade e "Automático" se alguma modalidade tem mais de um espaço.
+        self.auto_available = any(grupo.automatic for grupo in self.modalidades)
+        self.fields["modalidade"].choices = [(grupo.key, grupo.label) for grupo in self.modalidades]
         duration = str(self["duracao"].value() or "")
         if duration.isdigit() and int(duration) not in dict(DURATION_CHOICES):
             self.fields["duracao"].widget.choices = sorted(
@@ -97,6 +113,7 @@ class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
             )
             cleaned["inicio"] = inicio
             cleaned["fim"] = inicio + timedelta(minutes=cleaned["duracao"])
+        self._clean_where(cleaned)
 
         if not cleaned.get("cliente"):
             if not cleaned.get("cliente_nome", "").strip():
@@ -106,6 +123,51 @@ class ReservaForm(StyledFormMixin, TenantFormMixin, forms.Form):
             except InvalidPhone as exc:
                 self.add_error("cliente_telefone", str(exc))
         return cleaned
+
+    def _clean_where(self, cleaned):
+        """Onde: o espaço escolhido, ou os espaços da modalidade quando é "Automático"."""
+        espaco = cleaned.get("espaco")
+        grupo = next((g for g in self.modalidades if g.key == cleaned.get("modalidade")), None)
+        if espaco is not None and grupo is not None and espaco not in grupo.espacos:
+            grupo = None
+        if espaco is None and grupo is None and "espaco" not in self.errors:
+            self.add_error("espaco", "Escolha o espaço ou a modalidade.")
+        if grupo is not None:
+            label = grupo.label
+        elif espaco is not None and espaco.modalidades.strip() and len(space_modalities(espaco)) == 1:
+            label = space_modalities(espaco)[0]
+        else:
+            label = ""
+        cleaned["grupo"] = grupo
+        cleaned["modalidade_label"] = label
+        candidates = [espaco] if espaco is not None else (grupo.espacos if grupo else [])
+        if cleaned.get("inicio"):
+            cleaned["options"] = [(e, cleaned["inicio"], cleaned["fim"]) for e in candidates]
+
+    def modalidade_cards(self):
+        groups = {grupo.key: grupo for grupo in self.modalidades}
+        return [{"widget": widget, "grupo": groups[widget.data["value"]]} for widget in self["modalidade"]]
+
+    def espaco_cards(self):
+        keys = {e.pk: " ".join(slugify(label) for label in space_modalities(e)) for e in self.espacos}
+        cards = []
+        for widget in self["espaco"]:
+            instance = getattr(widget.data["value"], "instance", None)
+            cards.append(
+                {"widget": widget, "espaco": instance, "keys": keys.get(getattr(instance, "pk", None), "")}
+            )
+        return cards
+
+
+def initial_modality(groups, espaco=None, label=""):
+    """Modalidade que o painel abre marcada: a da reserva, a do espaço clicado ou a primeira com escolha."""
+    if label:
+        key = slugify(label)
+        if any(grupo.key == key for grupo in groups):
+            return key
+    if espaco is not None:
+        return next((grupo.key for grupo in groups if espaco in grupo.espacos), "")
+    return next((grupo.key for grupo in groups if grupo.automatic), groups[0].key if groups else "")
 
 
 class BloqueioForm(StyledFormMixin, TenantFormMixin, forms.Form):
@@ -225,7 +287,7 @@ class EndMensalistaForm(StyledFormMixin, forms.Form):
 
 
 class PublicBookingForm(StyledFormMixin, forms.Form):
-    espaco = forms.IntegerField(widget=forms.HiddenInput)
+    modalidade = forms.CharField(widget=forms.HiddenInput, max_length=60)
     data = forms.DateField(widget=forms.HiddenInput)
     hora = forms.TimeField(widget=forms.HiddenInput, error_messages={"required": "Escolha um horário."})
     nome = forms.CharField(

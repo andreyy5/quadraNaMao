@@ -17,6 +17,7 @@ from apps.espacos.models import Espaco
 from apps.espacos.services import load_schedule, load_schedules
 from apps.financeiro.models import Pagamento
 from apps.financeiro.services import sync_reservation_account
+from apps.whatsapp.services import enabled as whatsapp_enabled
 from apps.whatsapp.services import notify_reservation
 
 from .models import CONFLICT_CONSTRAINT, Bloqueio, Reserva, ReservaEvento
@@ -56,6 +57,12 @@ class ReservationClosed(ReservationError):
         super().__init__(
             f"Esta reserva já está {reserva.get_status_display().lower()} e não pode mais mudar."
         )
+
+
+class NoSpaceAvailable(ReservationError):
+    def __init__(self, modalidade=""):
+        alvo = f" de {modalidade.lower()}" if modalidade else ""
+        super().__init__(f"Nenhum espaço{alvo} livre nesse horário. Escolha outro horário.")
 
 
 class TenantMismatch(ReservationError):
@@ -288,6 +295,63 @@ def free_starts(espaco, day, minutes, ignore=None):
     return starts
 
 
+def free_starts_any(espacos, day, minutes, ignore=None):
+    """Inícios livres em pelo menos um dos espaços equivalentes."""
+    starts = set()
+    for espaco in espacos:
+        starts.update(free_starts(espaco, day, minutes, ignore=ignore))
+    return sorted(starts)
+
+
+def _fit(espaco, schedule, inicio, fim, ignore=None):
+    """Quanto a reserva deixaria a agenda do espaço arrumada (menor é melhor), ou None se não cabe."""
+    if fim <= inicio or not schedule.contains(inicio, fim):
+        return None
+    opens, closes = schedule.period(schedule.operating_day(inicio))
+    busy = _overlapping(Bloqueio, [espaco], opens, closes)[espaco.pk] + [
+        reserva for reserva in _overlapping(Reserva, [espaco], opens, closes)[espaco.pk] if reserva != ignore
+    ]
+    if any(item.inicio < fim and item.fim > inicio for item in busy):
+        return None
+    gap_start = max([item.fim for item in busy if item.fim <= inicio], default=opens)
+    gap_end = min([item.inicio for item in busy if item.inicio >= fim], default=closes)
+    # Sobra menor que um horário da grade ninguém consegue reservar: é horário perdido.
+    sellable = timedelta(minutes=schedule.slot_minutes(inicio))
+    waste = sum(
+        (piece for piece in (inicio - gap_start, gap_end - fim) if timedelta(0) < piece < sellable),
+        timedelta(0),
+    )
+    return waste, gap_end - gap_start, espaco.ordem, espaco.nome
+
+
+def rank_spaces(options, ignore=None):
+    """Ordena as opções (espaço, início, fim) da que deixa a agenda mais arrumada para a que menos deixa.
+
+    Fora as que não cabem (ocupado, bloqueado, fechado), vale nesta ordem: não deixar sobras curtas
+    demais para vender; ocupar a menor janela livre que comporta o jogo, colando nos jogos que já existem
+    e preservando os blocos grandes nos outros espaços; e a ordem de exibição dos espaços.
+    """
+    options = list(options)
+    schedules = load_schedules(espaco for espaco, _, _ in options)
+    ranked = []
+    for espaco, inicio, fim in options:
+        score = _fit(espaco, schedules[espaco.pk], inicio, fim, ignore)
+        if score is not None:
+            ranked.append((score, (espaco, inicio, fim)))
+    return [option for _, option in sorted(ranked, key=lambda pair: pair[0])]
+
+
+def create_reservation_auto(options, cliente, modalidade="", **kwargs):
+    """Reserva no espaço que deixa a agenda mais arrumada. Se outro pedido levar esse espaço no meio do
+    caminho, tenta o seguinte."""
+    for espaco, inicio, fim in rank_spaces(options):
+        try:
+            return create_reservation(espaco, cliente, inicio, fim, modalidade=modalidade, **kwargs)
+        except (ReservationConflict, SpaceBlocked):
+            continue
+    raise NoSpaceAvailable(modalidade)
+
+
 def slot_problem(espaco, inicio, fim, ignore=None):
     """Por que o período não pode ser reservado, ou None se está livre.
 
@@ -307,7 +371,7 @@ def _notify(reserva, kind):
 
     Com o WhatsApp desligado no momento da mudança, nem agenda o aviso.
     """
-    if not reserva.estabelecimento.whatsapp_ativo:
+    if not whatsapp_enabled(reserva.estabelecimento):
         return
     reserva_id = reserva.pk
     transaction.on_commit(lambda: notify_reservation(reserva_id, kind))
@@ -332,6 +396,7 @@ def create_reservation(
     valor_sinal=Decimal("0"),
     mensalista=None,
     notify=True,
+    modalidade="",
 ):
     if espaco.estabelecimento_id != cliente.estabelecimento_id:
         raise TenantMismatch
@@ -355,6 +420,7 @@ def create_reservation(
                     expira_em=expira_em,
                     valor_sinal=valor_sinal,
                     mensalista=mensalista,
+                    modalidade=modalidade,
                     criado_por=usuario,
                 )
         except IntegrityError as exc:
@@ -368,7 +434,9 @@ def create_reservation(
     return reserva
 
 
-def update_reservation(reserva, espaco, cliente, inicio, fim, valor_total, observacoes="", usuario=None):
+def update_reservation(
+    reserva, espaco, cliente, inicio, fim, valor_total, observacoes="", usuario=None, modalidade=None
+):
     """Altera ou remarca. Só repete as checagens de agenda se o horário ou o espaço mudar."""
     if (
         espaco.estabelecimento_id != cliente.estabelecimento_id
@@ -393,6 +461,8 @@ def update_reservation(reserva, espaco, cliente, inicio, fim, valor_total, obser
         reserva.fim = fim
         reserva.valor_total = valor_total
         reserva.observacoes = observacoes
+        if modalidade is not None:
+            reserva.modalidade = modalidade
         try:
             with transaction.atomic():
                 # Sem `valor_pago`: quem cuida dele é o financeiro, e esta cópia pode estar velha.
@@ -404,6 +474,7 @@ def update_reservation(reserva, espaco, cliente, inicio, fim, valor_total, obser
                         "fim",
                         "valor_total",
                         "observacoes",
+                        "modalidade",
                         "atualizado_em",
                     ]
                 )

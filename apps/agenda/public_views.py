@@ -8,13 +8,13 @@ from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_time
 from django.views.generic import TemplateView, View
 
-from apps.espacos.models import Espaco
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estabelecimentos.ratelimit import allow, client_ip
 from apps.financeiro import pix
+from apps.whatsapp.services import enabled as whatsapp_enabled
 
 from . import online
 from .forms import PublicBookingForm
@@ -44,31 +44,33 @@ class ReservarView(PublicMixin, TemplateView):
         return [self.template_name]
 
     def _selection(self):
-        espacos = online.public_spaces(self.estabelecimento)
+        modalidades = online.public_modalities(self.estabelecimento)
         days = online.booking_days(self.estabelecimento)
         params = self.request.POST if self.request.method == "POST" else self.request.GET
-        espaco = next(
-            (e for e in espacos if str(e.pk) == params.get("espaco", "")), espacos[0] if espacos else None
+        modalidade = next(
+            (m for m in modalidades if m.key == params.get("modalidade", "")),
+            modalidades[0] if modalidades else None,
         )
         try:
             day = parse_date(params.get("data") or "")
         except ValueError:
             day = None
-        return espacos, days, espaco, day if day in days else days[0]
+        return modalidades, days, modalidade, day if day in days else days[0]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if not self.estabelecimento.reserva_online_ativa:
             return context
         online.expire_pending_reservations(self.estabelecimento)
-        espacos, days, espaco, day = self._selection()
+        modalidades, days, modalidade, day = self._selection()
         context.update(
-            espacos=espacos,
+            modalidades=modalidades,
             days=days,
-            espaco=espaco,
+            modalidade=modalidade,
             day=day,
-            starts=online.public_starts(espaco, day) if espaco else [],
+            starts=online.modality_starts(modalidade.espacos, day) if modalidade else [],
             form=kwargs.get("form") or PublicBookingForm(initial={"aceite_whatsapp": True}),
+            whatsapp=whatsapp_enabled(self.estabelecimento),
             hora=self.request.POST.get("hora", ""),
         )
         return context
@@ -89,20 +91,21 @@ class ReservarView(PublicMixin, TemplateView):
             form.add_error(None, "Muitos pedidos seguidos deste aparelho. Tente de novo em uma hora.")
             return self.render_to_response(self.get_context_data(form=form), status=429)
         data = form.cleaned_data
-        espaco = Espaco.all_tenants.filter(
-            estabelecimento=self.estabelecimento, pk=data["espaco"], ativo=True
-        ).first()
-        if espaco is None:
-            form.add_error(None, "Escolha um dos espaços da lista.")
+        modalidade = next(
+            (m for m in online.public_modalities(self.estabelecimento) if m.key == data["modalidade"]), None
+        )
+        if modalidade is None:
+            form.add_error(None, "Escolha uma das modalidades da lista.")
             return self.render_to_response(self.get_context_data(form=form))
         try:
             reserva, pagamento = online.book_online(
                 self.estabelecimento,
-                espaco,
+                modalidade.espacos,
                 online.parse_start(self.estabelecimento, data["data"], data["hora"]),
                 data["nome"],
                 data["telefone"],
-                data["aceite_whatsapp"],
+                data["aceite_whatsapp"] and whatsapp_enabled(self.estabelecimento),
+                modalidade=modalidade.label,
             )
         except online.OnlineBookingError as exc:
             form.add_error(None, str(exc))
@@ -113,6 +116,34 @@ class ReservarView(PublicMixin, TemplateView):
             )
         request.session["reserva_publica"] = reserva.pk
         return redirect("publico:confirmada", slug=self.estabelecimento.slug)
+
+
+class PreviaView(PublicMixin, TemplateView):
+    """Onde o jogo vai cair e quanto custa, assim que o cliente toca num horário."""
+
+    template_name = "publico/_previa.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if not self.estabelecimento.reserva_online_ativa:
+            raise Http404
+        params = self.request.GET
+        modalidade = next(
+            (m for m in online.public_modalities(self.estabelecimento) if m.key == params.get("modalidade")),
+            None,
+        )
+        try:
+            day = parse_date(params.get("data") or "")
+            hora = parse_time(params.get("hora") or "")
+        except ValueError:
+            day = hora = None
+        if modalidade is None or day is None or hora is None:
+            raise Http404
+        context["modalidade"] = modalidade
+        context["previa"] = online.preview(
+            modalidade.espacos, online.parse_start(self.estabelecimento, day, hora)
+        )
+        return context
 
 
 class ConfirmadaView(PublicMixin, TemplateView):

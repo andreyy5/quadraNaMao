@@ -1,0 +1,19 @@
+{% extends "contas/auth_base.html" %}
+
+{% block title %}Esqueci minha senha · {{ PRODUCT_NAME }}{% endblock %}
+{% block tagline %}Vamos mandar um link para você criar uma senha nova.{% endblock %}
+
+{% block card %}
+<form method="post" class="flex flex-col gap-4">
+  {% csrf_token %}
+  <h1 class="text-xl">Esqueci minha senha</h1>
+  <p class="-mt-2 text-sm text-muted">Informe o e-mail que você usa para entrar.</p>
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.email icon="mail" %}
+  <button class="btn-primary mt-1 w-full" type="submit">Enviar link</button>
+</form>
+{% endblock %}
+
+{% block below %}
+<p class="mt-5 text-center text-sm"><a class="text-muted underline-offset-4 hover:text-primary hover:underline" href="{% url 'contas:login' %}">Voltar para o login</a></p>
+{% endblock %}

@@ -1,19 +1,19 @@
 {% extends "publico/base.html" %}
 
 {% block content %}
-{% if not espacos %}
+{% if not modalidades %}
 <p class="card p-8 text-center text-muted">Nenhum espaço disponível para reserva no momento.</p>
 {% else %}
 <div x-data="{ hora: '{{ hora }}' }">
 <form method="get" class="flex flex-col gap-5" id="escolha" hx-get="{{ request.path }}" hx-trigger="change" hx-target="#horarios" hx-swap="innerHTML" @change="hora = ''">
   <fieldset>
-    <legend class="label">Espaço</legend>
+    <legend class="label">O que você vai jogar?</legend>
     <div class="grid grid-cols-2 gap-2">
-      {% for item in espacos %}
+      {% for item in modalidades %}
       <label class="choice-card" data-theme="{{ item.tema }}">
-        <input type="radio" name="espaco" value="{{ item.pk }}" {% if item == espaco %}checked{% endif %}>
+        <input type="radio" name="modalidade" value="{{ item.key }}" {% if item.key == modalidade.key %}checked{% endif %}>
         {% include "components/illustration.html" with tema=item.tema class="h-8 w-auto shrink-0" %}
-        <span class="min-w-0 truncate text-sm font-medium">{{ item.nome }}</span>
+        <span class="line-clamp-2 min-w-0 text-sm font-medium leading-tight">{{ item.label }}</span>
       </label>
       {% endfor %}
     </div>
@@ -36,7 +36,7 @@
 <form method="post" class="mt-5 flex flex-col gap-5">
   {% csrf_token %}
   {% include "components/form_errors.html" %}
-  <input type="hidden" name="espaco" value="{{ espaco.pk }}" id="campo-espaco">
+  <input type="hidden" name="modalidade" value="{{ modalidade.key }}" id="campo-modalidade">
   <input type="hidden" name="data" value="{{ day|date:'Y-m-d' }}" id="campo-data">
   <input type="hidden" name="hora" :value="hora">
 
@@ -47,9 +47,10 @@
   </div>
 
   <div x-show="hora" x-cloak class="flex flex-col gap-4">
+    <div id="previa" aria-live="polite"></div>
     {% include "components/field.html" with field=form.nome icon="users" %}
     {% include "components/field.html" with field=form.telefone icon="message" %}
-    {% include "components/checkbox.html" with field=form.aceite_whatsapp %}
+    {% if whatsapp %}{% include "components/checkbox.html" with field=form.aceite_whatsapp %}{% endif %}
     <button class="btn-primary w-full" type="submit">Reservar</button>
     <p class="text-center text-xs text-muted">Se o horário tiver sinal, você paga por Pix na próxima tela.</p>
   </div>

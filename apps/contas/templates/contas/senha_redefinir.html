@@ -1,0 +1,28 @@
+{% extends "contas/auth_base.html" %}
+
+{% block title %}Nova senha · {{ PRODUCT_NAME }}{% endblock %}
+{% block tagline %}Escolha uma senha nova para entrar.{% endblock %}
+
+{% block card %}
+{% if validlink %}
+<form method="post" class="flex flex-col gap-4">
+  {% csrf_token %}
+  <h1 class="text-xl">Nova senha</h1>
+  {% include "components/form_errors.html" %}
+  {% include "components/password.html" with field=form.new_password1 %}
+  {% include "components/password.html" with field=form.new_password2 %}
+  <button class="btn-primary mt-1 w-full" type="submit">Salvar senha nova</button>
+</form>
+{% else %}
+<div class="flex flex-col items-center gap-3 text-center">
+  <span class="danger-mark">{% include "components/icon.html" with name="alert" %}</span>
+  <h1 class="text-xl">Link vencido</h1>
+  <p class="text-sm text-muted">Este link já foi usado ou passou do prazo. Peça um novo para continuar.</p>
+  <a class="btn-primary mt-2 w-full" href="{% url 'contas:senha_esqueci' %}">Pedir novo link</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block below %}
+<p class="mt-5 text-center text-sm"><a class="text-muted underline-offset-4 hover:text-primary hover:underline" href="{% url 'contas:login' %}">Voltar para o login</a></p>
+{% endblock %}

@@ -2,7 +2,7 @@
 <div class="ticket mb-5" data-theme="{{ reserva.espaco.tema }}">
   <div class="min-w-0">
     <p class="ticket-time">{{ reserva.inicio|time:"H:i" }}–{{ reserva.fim|time:"H:i" }}</p>
-    <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span></p>
+    <p class="mt-0.5 truncate text-sm text-muted"><span class="capitalize">{{ reserva.inicio|date:"D, d/m" }}</span> · <span class="font-medium text-text">{{ reserva.espaco.nome }}</span>{% if reserva.modalidade %} · {{ reserva.modalidade }}{% endif %}</p>
   </div>
   <p class="font-semibold tabular-nums">{{ reserva.valor_total|brl }}</p>
 </div>

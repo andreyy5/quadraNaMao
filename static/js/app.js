@@ -409,10 +409,34 @@
       telefone: data.telefone || "",
       editing: data.editing !== "false",
       tema: "",
+      modalidade: "",
+      autoOk: false,
       resumo: { espaco: "", dia: "", horario: "", valor: "" },
       init() {
         this.form = this.$el;
+        this.readModalidade();
         this.refreshSummary();
+      },
+      readModalidade() {
+        const checked = this.form.querySelector('[name="modalidade"]:checked');
+        this.modalidade = checked ? checked.value : "";
+        this.autoOk = checked ? Number(checked.closest("label").dataset.count) > 1 : false;
+      },
+      fits(card) {
+        // Sem a escolha de modalidade na tela, todos os espaços aparecem.
+        if (!this.form.querySelector('[name="modalidade"]')) return true;
+        return card.dataset.modalidades.split(" ").includes(this.modalidade);
+      },
+      onModalidade(event) {
+        if (event.target.name !== "modalidade") return;
+        this.readModalidade();
+        // Roda antes de o evento chegar ao HTMX: a consulta de horários já sai com o espaço certo.
+        const auto = this.form.querySelector('[data-auto] input');
+        const own = Array.from(this.form.querySelectorAll("[data-modalidades]")).filter((card) =>
+          card.dataset.modalidades.split(" ").includes(this.modalidade),
+        );
+        const target = this.autoOk ? auto : own[0] && own[0].querySelector("input");
+        if (target) target.checked = true;
       },
       pick(option) {
         this.clienteId = option.id;
@@ -436,11 +460,18 @@
       refreshSummary() {
         const field = (selector) => this.form.querySelector(selector);
         const espaco = field('[name="espaco"]:checked');
+        const modalidade = field('[name="modalidade"]:checked');
         const duracao = field('[name="duracao"]:checked');
         const hora = field('[name="hora"]').value;
         const valor = field('[name="valor_total"]');
-        this.tema = espaco ? espaco.closest("label").dataset.theme : "";
-        this.resumo.espaco = espaco ? espaco.closest("label").innerText.trim() : "";
+        const auto = espaco && !espaco.value;
+        const source = auto ? modalidade : espaco;
+        this.tema = source ? source.closest("label").dataset.theme || "" : "";
+        if (auto) {
+          this.resumo.espaco = modalidade ? `${modalidade.closest("label").innerText.trim()} · automático` : "Automático";
+        } else {
+          this.resumo.espaco = espaco ? espaco.closest("label").innerText.trim() : "";
+        }
         this.resumo.dia = shortDate(field('[name="data"]').value);
         this.resumo.valor = valor && valor.value ? `R$ ${valor.value}` : "";
         this.resumo.horario = "";

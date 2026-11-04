@@ -1,10 +1,13 @@
-"""Regras de horário e preço de um espaço."""
+"""Regras de horário e preço de um espaço, e as modalidades que ele atende."""
 
+import re
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils.text import slugify
 
 from .models import DiaSemana, HorarioFuncionamento, TabelaPreco
 
@@ -93,6 +96,48 @@ class Schedule:
             total += regra.valor * minutes / regra.duracao_slot_minutos
             cursor = chunk_end
         return total.quantize(Decimal("0.01"))
+
+
+# Espaço sem modalidade cadastrada vale pelo tipo.
+TIPO_COMO_MODALIDADE = {"CAMPO": "Campo", "QUADRA": "Quadra", "AREIA": "Areia"}
+
+
+def space_modalities(espaco):
+    """Modalidades do espaço, na grafia do cadastro ("Beach tênis, futevôlei")."""
+    labels = [part.strip() for part in re.split(r"[,;/]", espaco.modalidades) if part.strip()]
+    return labels or [TIPO_COMO_MODALIDADE[espaco.tipo]]
+
+
+@dataclass
+class Modalidade:
+    """Uma modalidade e os espaços que a aceitam. Esses espaços são tratados como equivalentes."""
+
+    key: str
+    label: str
+    espacos: list = field(default_factory=list)
+
+    @property
+    def tema(self):
+        return self.espacos[0].tema
+
+    @property
+    def automatic(self):
+        """Há escolha a fazer: o sistema decide entre mais de um espaço."""
+        return len(self.espacos) > 1
+
+
+def modality_groups(espacos):
+    """Modalidades oferecidas, na ordem dos espaços. "Beach Tênis" e "beach tenis" são a mesma."""
+    groups = {}
+    for espaco in espacos:
+        for label in space_modalities(espaco):
+            key = slugify(label)
+            if not key:
+                continue
+            group = groups.setdefault(key, Modalidade(key, label[:1].upper() + label[1:]))
+            if espaco not in group.espacos:
+                group.espacos.append(espaco)
+    return list(groups.values())
 
 
 def price_rule_siblings(regra):

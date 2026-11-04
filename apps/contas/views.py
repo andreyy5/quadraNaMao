@@ -1,18 +1,36 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
+from django.core.cache import cache
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.estabelecimentos.mixins import TenantRequiredMixin
-from apps.estabelecimentos.ratelimit import client_ip, hit, is_limited
+from apps.estabelecimentos.ratelimit import allow, client_ip, hit, is_limited
 
-from .forms import LoginForm, MembroEquipeCreateForm, MembroEquipeUpdateForm, SenhaForm
+from .forms import (
+    LoginForm,
+    MembroEquipeCreateForm,
+    MembroEquipeUpdateForm,
+    SenhaEsqueciForm,
+    SenhaForm,
+    SenhaNovaForm,
+)
 from .mixins import OwnerRequiredMixin
 from .models import Usuario
 
 LOGIN_LIMIT = 5
 LOGIN_IP_LIMIT = 30
 LOGIN_WINDOW = 15 * 60
+RESET_IP_LIMIT = 10
+RESET_EMAIL_LIMIT = 3
+RESET_WINDOW = 60 * 60
+
+
+def login_keys(request, email):
+    ip = client_ip(request)
+    return f"login:{ip}:{email.strip().lower()}", f"login-ip:{ip}"
 
 
 class LoginView(auth_views.LoginView):
@@ -23,9 +41,7 @@ class LoginView(auth_views.LoginView):
     redirect_authenticated_user = True
 
     def _keys(self):
-        ip = client_ip(self.request)
-        email = self.request.POST.get("username", "").strip().lower()
-        return f"login:{ip}:{email}", f"login-ip:{ip}"
+        return login_keys(self.request, self.request.POST.get("username", ""))
 
     def post(self, request, *args, **kwargs):
         user_key, ip_key = self._keys()
@@ -44,6 +60,60 @@ class LoginView(auth_views.LoginView):
 
 class LogoutView(auth_views.LogoutView):
     pass
+
+
+class SenhaEsqueciView(auth_views.PasswordResetView):
+    """Manda o link de redefinição. A tela é a mesma exista ou não a conta, para não revelar e-mails."""
+
+    template_name = "contas/senha_esqueci.html"
+    form_class = SenhaEsqueciForm
+    subject_template_name = "contas/emails/senha_assunto.txt"
+    email_template_name = "contas/emails/senha.txt"
+    html_email_template_name = "contas/emails/senha.html"
+    success_url = reverse_lazy("contas:senha_enviada")
+
+    @property
+    def extra_email_context(self):
+        return {
+            "PRODUCT_NAME": settings.PRODUCT_NAME,
+            "validade_horas": settings.PASSWORD_RESET_TIMEOUT // 3600,
+        }
+
+    def post(self, request, *args, **kwargs):
+        if not allow(f"senha-reset-ip:{client_ip(request)}", RESET_IP_LIMIT, RESET_WINDOW):
+            form = self.get_form()
+            form.add_error(None, "Muitos pedidos seguidos. Espere uma hora e tente de novo.")
+            return self.render_to_response(self.get_context_data(form=form), status=429)
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        email = form.cleaned_data["email"].strip().lower()
+        if not allow(f"senha-reset:{email}", RESET_EMAIL_LIMIT, RESET_WINDOW):
+            # Passou do limite: não manda, mas a tela é a mesma de sempre.
+            return redirect(self.success_url)
+        return super().form_valid(form)
+
+
+class SenhaEnviadaView(auth_views.PasswordResetDoneView):
+    template_name = "contas/senha_enviada.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["validade_horas"] = settings.PASSWORD_RESET_TIMEOUT // 3600
+        return context
+
+
+class SenhaRedefinirView(auth_views.PasswordResetConfirmView):
+    template_name = "contas/senha_redefinir.html"
+    form_class = SenhaNovaForm
+    success_url = reverse_lazy("contas:login")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Quem errou a senha até ser bloqueado já pode entrar com a nova.
+        cache.delete(login_keys(self.request, form.user.email)[0])
+        messages.success(self.request, "Senha redefinida. Entre com a senha nova.")
+        return response
 
 
 class SenhaChangeView(TenantRequiredMixin, auth_views.PasswordChangeView):

@@ -118,9 +118,15 @@ def deliver(mensagem_id):
     mensagem.save(update_fields=["status", "wa_id", "atualizado_em"])
 
 
+def enabled(estabelecimento=None):
+    """Módulo ligado no sistema (WHATSAPP_ENABLED) e, se informado, ligado no estabelecimento."""
+    if not settings.WHATSAPP_ENABLED:
+        return False
+    return estabelecimento is None or estabelecimento.whatsapp_ativo
+
+
 def can_message(cliente):
-    estabelecimento = cliente.estabelecimento
-    return estabelecimento.whatsapp_ativo and cliente.aceite_whatsapp and cliente.anonimizado_em is None
+    return enabled(cliente.estabelecimento) and cliente.aceite_whatsapp and cliente.anonimizado_em is None
 
 
 def _when(reserva):
@@ -210,6 +216,8 @@ def send_test(estabelecimento, telefone, usuario):
 
 def send_due_reminders(now=None):
     """Lembrete das reservas que começam dentro do prazo configurado em cada estabelecimento."""
+    if not enabled():
+        return 0
     now = now or timezone.now()
     sent = 0
     for estabelecimento in Estabelecimento.objects.filter(
