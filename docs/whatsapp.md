@@ -1,5 +1,7 @@
 # WhatsApp: como ligar o envio de verdade
 
+> **Módulo em espera.** Por causa do custo, o WhatsApp automático está desligado (`WHATSAPP_ENABLED=False`, o padrão): não aparece no menu e não manda nada. Para usar, ponha `WHATSAPP_ENABLED=True` no `.env` e siga este guia.
+
 O sistema já manda confirmações, lembretes, avisos de chuva e respostas da equipe, e recebe o que os clientes escrevem. Enquanto a Meta não estiver configurada, ele roda em **modo de teste**: tudo fica registrado em **WhatsApp** no menu, mas nada sai para o celular de ninguém.
 
 Para mandar de verdade, é preciso uma conta na Meta com a **WhatsApp Cloud API**. O sistema não usa a API oficial de terceiros nem automação do app: só a Cloud API, que é o caminho permitido pela Meta para empresas.

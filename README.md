@@ -49,16 +49,21 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 - Conflito de horário impedido pelo próprio banco de dados, inclusive com reservas feitas ao mesmo tempo.
 - Bloqueios (chuva, manutenção, evento) com a lista das reservas afetadas para remarcar e avisar.
 
+**Reserva por modalidade, com organização automática**
+- Quem reserva escolhe o que vai jogar (beach tênis, futevôlei, fut7...), o dia e a hora. O sistema escolhe o espaço.
+- A escolha deixa a agenda arrumada: cola o jogo nos que já existem, não deixa sobras de meia hora que ninguém compra e guarda os blocos grandes livres nos outros espaços.
+- Vale no link público e no painel (opção "Automático"). Clicar num horário da grade continua reservando aquele espaço.
+
 **Reserva online e mensalistas**
-- Link público para o cliente reservar sozinho pelo celular, sem login, vendo só os horários livres.
+- Link público para o cliente reservar sozinho pelo celular, sem login, vendo só os horários livres e, antes de confirmar, o espaço e o preço.
 - Sinal por Pix (QR Code e copia e cola): o horário fica reservado pelo prazo do pagamento e é liberado sozinho se o sinal não for pago.
 - Política de cancelamento com antecedência configurável.
 - Mensalistas com horário fixo semanal: as reservas são criadas sozinhas semanas à frente, com cobrança por jogo ou mensalidade, e as semanas sem vaga viram aviso para o dono.
 
-**WhatsApp**
-- Confirmação, lembrete antes do jogo, cancelamento e aviso de chuva ou manutenção, só para quem aceitou (LGPD).
-- Histórico de conversas com status de entrega e leitura, e resposta da equipe pelo próprio sistema.
-- Cliente sai da lista respondendo SAIR.
+**WhatsApp (módulo em espera)**
+- Pronto, mas desligado por padrão por causa do custo da Meta: some do menu e não manda nada. `WHATSAPP_ENABLED=True` religa.
+- Quando ligado: confirmação, lembrete, cancelamento e aviso de chuva só para quem aceitou (LGPD), histórico de conversas com status de leitura e SAIR para deixar de receber.
+- O botão de chamar o cliente no WhatsApp pelo celular da equipe continua, porque não tem custo.
 
 **Clientes**
 - Cadastro automático na primeira reserva, busca por nome ou telefone e histórico.
@@ -80,6 +85,7 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 - Modo escuro (padrão) e claro, layout pensado primeiro para o celular.
 - Busca rápida (`Ctrl` + `K`) e atalhos de teclado.
 - Perfis de dono, gerente e atendente, cada um com o que precisa.
+- "Esqueci minha senha" com link por e-mail.
 
 ## Telas
 
@@ -157,9 +163,9 @@ Para preparar o `.env` à mão, copie o [.env.example](.env.example) e preencha 
 | `manage.py seed_demo --reset` | Apaga e recria a demonstração (gera uma senha nova). |
 | `manage.py seed_demo --produtos` | Só acrescenta produtos e vendas a uma demonstração antiga. |
 | `manage.py seed_demo --financeiro` | Só acrescenta contas e recebimentos de exemplo. |
-| `manage.py seed_demo --online` | Só liga o link público, o Pix, o WhatsApp (em modo de teste) e cria mensalistas numa demonstração antiga. |
+| `manage.py seed_demo --online` | Só liga o link público e o Pix, junta as modalidades das areias e cria mensalistas numa demonstração antiga. |
 
-O comando só roda em desenvolvimento (`config.settings.dev`). O link público da demonstração é http://127.0.0.1:8000/r/arena-demo/. Em desenvolvimento, a página do Pix tem um botão que simula o pagamento, e as mensagens de WhatsApp ficam só no histórico do sistema.
+O comando só roda em desenvolvimento (`config.settings.dev`). O link público da demonstração é http://127.0.0.1:8000/r/arena-demo/. Em desenvolvimento, a página do Pix tem um botão que simula o pagamento, e o e-mail do "esqueci minha senha" aparece no terminal do `runserver`.
 
 ## Variáveis de ambiente
 
@@ -175,6 +181,9 @@ O comando só roda em desenvolvimento (`config.settings.dev`). O link público d
 | `NUM_PROXIES` | atrás de proxy | Quantos proxies reversos ficam na frente do Django (nginx, balanceador). Padrão `0`. |
 | `SITE_URL` | em produção | Endereço público do sistema, usado nos links mandados por WhatsApp. |
 | `PIX_PROVIDER` | não | `estatico` (padrão: a equipe confirma o Pix) ou `simulado` (só desenvolvimento). Veja [docs/integracoes.md](docs/integracoes.md). |
+| `EMAIL_URL` | em produção | Servidor de e-mail para o "esqueci minha senha", como `smtp+tls://usuario:senha@smtp.provedor.com:587`. Sem ele, o e-mail só aparece no terminal. |
+| `DEFAULT_FROM_EMAIL` | em produção | Remetente, como `QuadraNaMão! <nao-responda@seudominio.com.br>`. |
+| `WHATSAPP_ENABLED` | não | `False` (padrão, módulo em espera) ou `True` para ligar o WhatsApp automático. |
 | `WHATSAPP_PROVIDER` | não | `console` (padrão: só registra no histórico) ou `cloud` (Cloud API da Meta). |
 | `WHATSAPP_ACCESS_TOKEN` | com `cloud` | Token permanente do usuário do sistema na Meta. |
 | `WHATSAPP_APP_SECRET` | com `cloud` | Chave secreta do app da Meta, para conferir a assinatura do webhook. |
@@ -203,6 +212,8 @@ O `.env` nunca vai para o repositório: o `.gitignore` já cuida disso.
 ```
 
 Em `/admin/`, crie o estabelecimento e um usuário com perfil **Dono** vinculado a ele. Ao entrar, o dono vê os primeiros passos: espaço, horários, preços e primeira reserva. O superusuário só acessa o admin, porque não pertence a nenhum estabelecimento.
+
+No cadastro de cada espaço, preencha **Modalidades** separadas por vírgula. Espaços com a mesma modalidade são tratados como iguais: é entre eles que o sistema escolhe na reserva automática.
 
 ### Atalhos de teclado
 
@@ -233,6 +244,9 @@ Os testes criam um banco temporário no próprio PostgreSQL. As regras críticas
 | Mensalistas, avisos e mensalidade | `apps/agenda/tests/test_mensalistas.py` |
 | WhatsApp: aceite, webhook assinado, status, SAIR, janela de 24 horas | `apps/whatsapp/tests/` |
 | Limite de tentativas no login | `apps/contas/tests/` e `apps/estabelecimentos/tests/test_ratelimit.py` |
+| Esqueci minha senha: link, uso único, limites e e-mail que não existe | `apps/contas/tests/test_senha.py` |
+| Escolha automática do espaço, no painel e no link | `apps/agenda/tests/test_automatico.py` |
+| WhatsApp em espera | `apps/whatsapp/tests/test_em_espera.py` |
 | Isolamento entre estabelecimentos | `apps/estabelecimentos/tests/test_isolation.py` e os testes de cada app |
 
 O GitHub Actions roda lint, formatação, checagem de migrações e testes a cada push e pull request. Para rodar ruff e black antes de cada commit:
@@ -282,7 +296,7 @@ docs/                   decisões técnicas, guias do WhatsApp e do Pix e captur
 | 2 | Mensalistas, sinal com Pix e link público de reserva | Pronta. Confirmação automática do Pix depende de escolher o provedor |
 | 3 | Financeiro: caixa, contas e relatórios | Pronta |
 | 4 | PDV e estoque | Pronta |
-| 5 | WhatsApp: lembretes e confirmações automáticas | Pronta. Envio real depende de configurar a conta na Meta |
+| 5 | WhatsApp: lembretes e confirmações automáticas | Pronta, em espera (desligada por custo) |
 | 6 | Agente de IA para reservas pelo WhatsApp | Planejada |
 | 7 | Lista de espera, cupons, planos e app | Planejada |
 

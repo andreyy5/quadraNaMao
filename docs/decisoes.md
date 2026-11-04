@@ -25,6 +25,14 @@ Consequências a lembrar:
 
 **Classes do Tailwind nos templates.** Duas armadilhas: classes montadas a partir de dados do banco (`badge-{{ status }}`) precisam entrar no `safelist`, e classes com valor arbitrário não podem ficar coladas em `{% if %}` (`{% if x %}md:max-h-[...]{% endif %}` não é gerada; com espaços, é).
 
+**WhatsApp em espera.** O módulo automático (Fase 5) ficou pronto, mas foi desligado por decisão do Andrey, por causa do custo da Meta. `WHATSAPP_ENABLED` (padrão desligado) esconde o menu, a aba de Ajustes, as conversas e o webhook, e impede qualquer envio, inclusive lembretes. Nada foi apagado: ligar a variável traz tudo de volta. O link público também deixa de pedir o aceite de WhatsApp, para não colher um consentimento que não vai ser usado.
+
+**Reserva por modalidade (organização automática).** Quem reserva escolhe a modalidade, o dia e a hora; o sistema escolhe o espaço. As modalidades saem do campo de texto do espaço (separadas por vírgula, sem diferença de acento ou maiúscula), e espaços com a mesma modalidade são tratados como equivalentes. Espaço sem modalidade cadastrada vale pelo tipo ("Areia"). Entre os livres, a escolha segue, nesta ordem: não deixar sobra menor que um horário da grade (ninguém compra meia hora solta); ocupar a menor janela livre que comporta o jogo (encaixe justo, que cola nos jogos existentes e preserva os blocos grandes nos outros espaços); e a ordem de exibição. Se o escolhido for ocupado no meio do caminho, tenta o seguinte. A reserva guarda a modalidade, para a equipe preparar o espaço (rede de beach tênis ou de vôlei, por exemplo).
+
+**Painel com "Automático".** A escolha de modalidade e o cartão "Automático" só aparecem quando alguma modalidade tem mais de um espaço; sem isso, o painel fica como antes. O botão "Nova reserva" abre no automático; clicar num horário da grade continua escolhendo aquele espaço, porque quem clicou já decidiu.
+
+**Esqueci minha senha.** Usa o fluxo do Django com token de uso único, válido por 2 horas. A tela é a mesma exista ou não a conta, e o e-mail sai pelo Celery, para o tempo de resposta não revelar quais e-mails existem. Limites: 3 e-mails por hora para o mesmo endereço (os excedentes não saem, sem aviso) e 10 pedidos por hora do mesmo IP. Redefinir a senha libera o bloqueio de login daquele e-mail.
+
 **Dois jeitos de falar pelo WhatsApp.** Os botões de conversa abrem o `wa.me` e quem envia é o atendente, pelo próprio celular. As mensagens automáticas (Fase 5) saem pela Cloud API da Meta, só para quem aceitou, e ficam no histórico do sistema. O passo a passo da Meta está em [whatsapp.md](whatsapp.md).
 
 **Painel de reserva.** Quem clica em um horário livre vê só o horário em destaque e os dados do cliente; o resto abre em "Alterar" ou quando há erro de horário. A lista de horários livres (`free_starts`) e o aviso de conflito (`slot_problem`) só consultam: quem garante é a constraint ao gravar. Horários passados ficam fora da lista, mas continuam possíveis em "Outro horário", porque o painel permite passar o caderno a limpo.
@@ -100,6 +108,8 @@ Estas regras não estão definidas no planner:
 31. **WhatsApp automático só para quem aceitou**, nunca sobre jogo que já começou, e sem confirmação para jogos de mensalista. "SAIR", "PARAR" ou "STOP" desligam o aceite na hora; "VOLTAR" religa. Resposta livre da equipe só nas 24 horas seguintes à última mensagem do cliente, como exige a Meta.
 32. O **aviso de bloqueio** pelo WhatsApp é disparado pela equipe na tela do bloqueio, e não sozinho, porque às vezes o dono prefere remarcar antes de avisar.
 33. Só o **dono** configura o link público, o Pix e o WhatsApp. Toda a equipe vê as conversas e responde.
+34. No link público, o cliente **não escolhe o espaço**: vê antes de confirmar onde vai jogar e quanto custa. Escolher um espaço específico ("quero a quadra coberta") fica para depois, se o piloto pedir.
+35. Espaços equivalentes podem ter **preços diferentes**: vale o preço do espaço escolhido, mostrado antes de confirmar.
 
 ## O que ainda não foi executado
 
@@ -110,4 +120,4 @@ Estas regras não estão definidas no planner:
 ## Pendências conhecidas
 
 - **Confirmação automática do Pix:** depende de escolher o provedor de cobrança ([integracoes.md](integracoes.md)).
-- **Reset de senha por e-mail:** depende de escolher um provedor de e-mail. Por enquanto é feito pelo admin.
+- **Provedor de e-mail em produção:** o "esqueci minha senha" está pronto, mas precisa de um servidor SMTP em `EMAIL_URL` para os e-mails saírem de verdade.
