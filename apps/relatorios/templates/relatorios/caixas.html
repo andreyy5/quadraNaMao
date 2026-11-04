@@ -1,0 +1,72 @@
+{% extends "relatorios/_layout.html" %}
+{% load ui %}
+
+{% block report %}
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+  {% for item in report.kpis %}{% include "relatorios/_kpi.html" %}{% endfor %}
+</dl>
+
+{% if report.abertos %}
+<section class="mb-6" aria-labelledby="abertos">
+  <h2 id="abertos" class="mb-2">Abertos agora</h2>
+  <ul class="card divide overflow-hidden">
+    {% for caixa in report.abertos %}
+    <li>
+      <a class="row-link px-4 py-2.5" href="{% url 'financeiro:caixa_detail' caixa.pk %}">
+        <span class="register-dot {% if caixa.antigo %}bg-warning{% else %}bg-success{% endif %}"></span>
+        <span class="min-w-0 flex-1 text-sm"><span class="font-medium">{{ caixa.nome }}</span> <span class="text-muted">· desde {{ caixa.criado_em|date:"d/m H:i" }}</span>{% if caixa.antigo %} <span class="text-warning">· aberto desde outro dia: feche e confira</span>{% endif %}</span>
+        <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="mb-6" aria-labelledby="por-operador">
+  <h2 id="por-operador" class="mb-2">Por operador</h2>
+  {% if report.por_operador %}
+  <div class="card overflow-x-auto">
+    <table class="data-table w-full text-sm [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
+      <thead><tr><th scope="col" class="pt-3">Operador</th><th scope="col" class="pt-3">Caixas</th><th scope="col" class="pt-3">Recebido</th><th scope="col" class="pt-3">Diferença</th></tr></thead>
+      <tbody>
+        {% for item in report.por_operador %}
+        <tr>
+          <td class="py-2 font-medium">{{ item.nome }}</td>
+          <td>{{ item.caixas }}</td>
+          <td class="whitespace-nowrap">{{ item.recebido|brl }}</td>
+          <td class="whitespace-nowrap {% if item.diferenca < 0 %}text-danger{% elif item.diferenca > 0 %}text-warning{% endif %}">{{ item.diferenca|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="card p-6 text-center text-sm text-muted">Nenhum caixa fechado neste período.</p>
+  {% endif %}
+</section>
+
+{% if report.fechados %}
+<section aria-labelledby="fechamentos">
+  <h2 id="fechamentos" class="mb-2">Fechamentos</h2>
+  <div class="card overflow-x-auto">
+    <table class="data-table w-full text-sm [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
+      <thead><tr><th scope="col" class="pt-3">Fechado</th><th scope="col" class="pt-3">Caixa</th><th scope="col" class="hidden pt-3 sm:table-cell">Recebido</th><th scope="col" class="hidden pt-3 md:table-cell">Esperado</th><th scope="col" class="hidden pt-3 md:table-cell">Contado</th><th scope="col" class="pt-3">Diferença</th></tr></thead>
+      <tbody>
+        {% for caixa in report.fechados %}
+        <tr>
+          <td class="whitespace-nowrap py-2"><a class="hover:text-primary" href="{% url 'financeiro:caixa_detail' caixa.pk %}">{{ caixa.fechado_em|date:"d/m H:i" }}</a></td>
+          <td class="max-w-[8rem] truncate">{{ caixa.nome }}</td>
+          <td class="hidden whitespace-nowrap sm:table-cell">{{ caixa.recebido|brl }}</td>
+          <td class="hidden whitespace-nowrap md:table-cell">{{ caixa.saldo_esperado|brl }}</td>
+          <td class="hidden whitespace-nowrap md:table-cell">{{ caixa.saldo_conferido|brl }}</td>
+          <td class="whitespace-nowrap {% if caixa.diferenca < 0 %}text-danger{% elif caixa.diferenca > 0 %}text-warning{% endif %}" {% if caixa.observacao %}title="{{ caixa.observacao }}"{% endif %}>{{ caixa.diferenca|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-2 text-xs text-muted">Diferença é o dinheiro contado menos o esperado na gaveta: negativa é falta, positiva é sobra. Pix e cartão conferem com o extrato.</p>
+</section>
+{% endif %}
+{% endblock %}

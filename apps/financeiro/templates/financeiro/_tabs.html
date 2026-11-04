@@ -4,6 +4,5 @@
   <a class="tab {% if active_tab == 'receber' %}is-active{% endif %}" href="{% url 'financeiro:receber' %}">A receber</a>
   <a class="tab {% if active_tab == 'pagar' %}is-active{% endif %}" href="{% url 'financeiro:pagar' %}">A pagar</a>
   <a class="tab {% if active_tab == 'historico' %}is-active{% endif %}" href="{% url 'financeiro:caixas' %}">Caixas</a>
-  <a class="tab {% if active_tab == 'relatorios' %}is-active{% endif %}" href="{% url 'relatorios:relatorio' %}">Relatórios</a>
 </nav>
 {% endif %}

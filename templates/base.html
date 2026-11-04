@@ -27,7 +27,8 @@
       {% if WHATSAPP_ENABLED %}<a class="nav-side {% nav_active '/whatsapp' %}" href="{% url 'whatsapp:conversas' %}">{% include "components/icon.html" with name="message" %} WhatsApp</a>{% endif %}
       {% if request.user.is_manager %}
       <a class="nav-side {% nav_active '/estoque' %}" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
-      <a class="nav-side {% nav_active '/financeiro' '/relatorios' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Financeiro</a>
+      <a class="nav-side {% nav_active '/financeiro' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Financeiro</a>
+      <a class="nav-side {% nav_active '/relatorios' %}" href="{% url 'relatorios:relatorio' %}">{% include "components/icon.html" with name="chart" %} Relatórios</a>
       {% else %}
       <a class="nav-side {% nav_active '/financeiro' %}" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} Caixa</a>
       {% endif %}
@@ -91,6 +92,7 @@
         {% if WHATSAPP_ENABLED %}<a class="nav-side" href="{% url 'whatsapp:conversas' %}">{% include "components/icon.html" with name="message" %} WhatsApp</a>{% endif %}
         <a class="nav-side" href="{% url 'financeiro:caixa' %}">{% include "components/icon.html" with name="dinheiro" %} {% if request.user.is_manager %}Financeiro{% else %}Caixa{% endif %}</a>
         {% if request.user.is_manager %}
+        <a class="nav-side" href="{% url 'relatorios:relatorio' %}">{% include "components/icon.html" with name="chart" %} Relatórios</a>
         <a class="nav-side" href="{% url 'estoque:list' %}">{% include "components/icon.html" with name="box" %} Estoque</a>
         {% endif %}
         {% if request.user.is_owner %}

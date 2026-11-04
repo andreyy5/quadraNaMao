@@ -62,6 +62,8 @@
     --color-warning: 255 200 61;
     --color-danger: 255 107 128;
     --color-chart: 14 158 184;
+    /* Saídas no fluxo de caixa: par validado com o ciano (CVD e contraste) nos dois modos. */
+    --color-chart-out: 217 89 38;
   }
 
   [data-mode="light"] {
@@ -80,6 +82,7 @@
     --color-warning: 161 98 7;
     --color-danger: 190 30 50;
     --color-chart: 0 108 158;
+    --color-chart-out: 235 104 52;
   }
 
   /* Temas por modalidade: só o acento muda, os componentes continuam os mesmos. */
@@ -268,9 +271,11 @@
   .input-group:focus-within .input-affix { @apply text-primary; }
 
   .link-action {
-    @apply inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted underline-offset-2 hover:text-primary hover:underline;
+    @apply relative inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted underline-offset-2 hover:text-primary hover:underline;
     transition: color 0.15s ease;
   }
+  /* Área de toque maior que o texto, sem mudar o desenho: o dedo acerta mesmo num link pequeno. */
+  .link-action::after { content: ""; position: absolute; inset: -10px -6px; }
 
   /* Painéis e formulários em cartão: cabeçalho e ações ficam sempre à vista enquanto o corpo rola. */
   .sheet-head { @apply flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-5 py-2.5 backdrop-blur-sm; }
@@ -657,7 +662,7 @@
     outline-offset: -1px;
   }
   .bars-col > span.bars-fill {
-    @apply mx-auto block w-full max-w-10 rounded-t bg-chart;
+    @apply mx-auto block w-full max-w-6 rounded-t bg-chart;
     min-height: 0;
     transform-origin: bottom;
     animation: grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
@@ -671,11 +676,49 @@
   .bars-col:hover .bars-tip,
   .bars-col:focus-visible .bars-tip { @apply block; }
   .hbar { @apply h-2 overflow-hidden rounded-full bg-surface-2; }
+  .hbar.is-out > span { background: rgb(var(--color-chart-out)); }
   .hbar > span {
     @apply block h-full rounded-full bg-chart;
     transform-origin: left;
     animation: grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
   }
+
+  /* Fluxo de caixa: entradas sobem e saídas descem da mesma linha de base. */
+  .flow { @apply flex h-52 gap-0.5; }
+  .flow-col { @apply relative flex min-w-0 flex-1 cursor-default flex-col; outline-offset: -1px; }
+  .flow-half { @apply flex min-h-0 flex-1 justify-center; }
+  .flow-half.is-up { @apply items-end border-b border-border; }
+  .flow-half.is-down { @apply items-start; }
+  .flow-in,
+  .flow-out {
+    @apply block w-full max-w-6;
+    transition: filter 0.15s ease;
+    animation: grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  .flow-in { @apply rounded-t bg-chart; transform-origin: bottom; }
+  .flow-out { @apply rounded-b; background: rgb(var(--color-chart-out)); transform-origin: top; }
+  .flow-col:hover :is(.flow-in, .flow-out),
+  .flow-col:focus-visible :is(.flow-in, .flow-out) { filter: brightness(1.25); }
+  .flow-col:hover .bars-tip,
+  .flow-col:focus-visible .bars-tip { @apply block; }
+  .legend-key { @apply inline-block h-2.5 w-2.5 shrink-0 rounded-sm bg-chart; }
+  .legend-key.is-out { background: rgb(var(--color-chart-out)); }
+
+  /* Ocupação por dia da semana e hora: uma cor só, mais forte onde enche mais. */
+  .heat { @apply grid gap-0.5 text-[11px] tabular-nums text-muted; grid-template-columns: 2rem repeat(var(--cols), minmax(0.875rem, 1fr)); }
+  /* Rótulo de hora pode passar por cima da coluna vazia ao lado, sem alargar a grade. */
+  .heat > * { min-width: 0; white-space: nowrap; }
+  .heat-cell {
+    @apply relative h-7 cursor-default rounded;
+    background: rgb(var(--color-chart) / var(--a));
+    outline-offset: -1px;
+    transition: filter 0.15s ease;
+  }
+  .heat-cell.is-closed { background: transparent; box-shadow: inset 0 0 0 1px rgb(var(--color-border) / 0.7); }
+  .heat-cell:hover,
+  .heat-cell:focus-visible { filter: brightness(1.3); outline: 1px solid rgb(var(--color-text) / 0.6); }
+  .heat-cell:hover .bars-tip,
+  .heat-cell:focus-visible .bars-tip { @apply block; }
 
   /* Menu "Mais" do celular */
   .nav-more {

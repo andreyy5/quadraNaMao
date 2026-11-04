@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}Relatórios · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-5xl{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1>Relatórios</h1>
+    <p class="text-sm text-muted">{{ first|date:"d/m/Y" }} a {{ last|date:"d/m/Y" }}</p>
+  </div>
+  <a class="btn-secondary min-h-10" href="?{% if query %}{{ query }}&amp;{% endif %}formato=csv">{% include "components/icon.html" with name="receipt" %} Exportar CSV</a>
+</div>
+
+<form method="get" class="mb-4 flex flex-wrap items-center gap-2" aria-label="Período">
+  <div class="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-0.5">
+    {% for value, label in presets %}
+    <a class="chip shrink-0" aria-pressed="{% if preset == value %}true{% else %}false{% endif %}" href="?periodo={{ value }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  {# No celular, escolher a data já atualiza (o botão não cabe sem cortar o ano). #}
+  <div class="grid w-full grid-cols-2 items-center gap-2 sm:ml-auto sm:flex sm:w-auto" x-data @change="if (window.innerWidth < 640) $el.closest('form').requestSubmit()">
+    <label class="sr-only" for="rel-de">De</label>
+    <input id="rel-de" class="input min-h-10 min-w-0 sm:w-40" type="date" name="de" value="{{ first|date:'Y-m-d' }}">
+    <label class="sr-only" for="rel-ate">Até</label>
+    <input id="rel-ate" class="input min-h-10 min-w-0 sm:w-40" type="date" name="ate" value="{{ last|date:'Y-m-d' }}">
+    <button class="btn-secondary hidden min-h-10 sm:inline-flex" type="submit">Ver</button>
+  </div>
+</form>
+
+<nav class="mb-5 flex gap-1 overflow-x-auto" aria-label="Relatórios">
+  {% for key, label, url in tabs %}
+  <a class="tab shrink-0 {% if key == tab %}is-active{% endif %}" href="{% url url %}{% if query %}?{{ query }}{% endif %}" {% if key == tab %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+{% block report %}{% endblock %}
+{% endblock %}

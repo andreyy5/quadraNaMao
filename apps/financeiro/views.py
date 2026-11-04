@@ -93,6 +93,11 @@ class FecharCaixaView(TenantRequiredMixin, ModalResponseMixin, FormView):
                 raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["online"] = self.caixa.tipo == Caixa.Tipo.ONLINE
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["caixa"] = self.caixa
@@ -103,7 +108,7 @@ class FecharCaixaView(TenantRequiredMixin, ModalResponseMixin, FormView):
         data = form.cleaned_data
         try:
             caixa = services.close_register(
-                self.caixa, data["saldo_conferido"], self.request.user, data["observacao"]
+                self.caixa, data.get("saldo_conferido", services.ZERO), self.request.user, data["observacao"]
             )
         except services.FinanceError as exc:
             form.add_error(None, str(exc))

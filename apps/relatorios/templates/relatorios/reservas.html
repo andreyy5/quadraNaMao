@@ -1,0 +1,79 @@
+{% extends "relatorios/_layout.html" %}
+{% load ui %}
+
+{% block report %}
+<dl class="stagger mb-2 grid grid-cols-2 gap-3 lg:grid-cols-3">
+  {% for item in report.kpis %}{% include "relatorios/_kpi.html" %}{% endfor %}
+</dl>
+<p class="mb-6 text-xs text-muted">Reservas pelo dia do jogo, sem as canceladas. Antecedência média das reservas avulsas: {{ report.antecedencia_dias|floatformat:1 }} dia{{ report.antecedencia_dias|pluralize }}.{% if report.ocupacao_desde %} A ocupação olha a partir de {{ report.ocupacao_desde|date:"d/m/Y" }} (últimos 92 dias do período).{% endif %}</p>
+
+<section class="card mb-6 p-4" aria-labelledby="heat-titulo">
+  <div class="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+    <div>
+      <h2 id="heat-titulo">Ocupação por dia e horário</h2>
+      <p class="text-xs text-muted">Quanto das horas abertas foi reservado, somando todos os espaços.</p>
+    </div>
+    <div class="flex items-center gap-1.5 text-[11px] text-muted" aria-hidden="true">
+      <span>0%</span>
+      {% for alpha in report.heatmap.scale %}<span class="heat-cell h-3 w-5" style="--a:{{ alpha }}"></span>{% endfor %}
+      <span>100%</span>
+      <span class="heat-cell is-closed ml-2 h-3 w-5"></span><span>fechado</span>
+    </div>
+  </div>
+  {% if report.heatmap.hours %}
+  <div class="overflow-x-auto pb-1">
+    <div class="heat" style="--cols:{{ report.heatmap.hours|length }}" role="img" aria-label="Ocupação por dia da semana e hora. Os valores estão na tabela logo abaixo.">
+      <span></span>
+      {% for hour in report.heatmap.hours %}<span class="flex {% if forloop.last %}justify-end{% else %}justify-center{% endif %}">{% if forloop.counter0|divisibleby:2 %}{{ hour }}h{% endif %}</span>{% endfor %}
+      {% for row in report.heatmap.rows %}
+      <span class="self-center font-medium text-text">{{ row.label }}</span>
+      {% for cell in row.cells %}
+      <span class="heat-cell {% if cell.share is None %}is-closed{% endif %}" style="--a:{{ cell.alpha }}" tabindex="0"><span class="bars-tip">{{ row.label }} {{ cell.hour }}h: {% if cell.share is None %}fechado{% else %}{{ cell.share }}% ocupado{% endif %}</span></span>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+  <details class="mt-3 text-sm">
+    <summary class="cursor-pointer text-muted transition-colors hover:text-text">Ver como tabela</summary>
+    <div class="overflow-x-auto">
+      <table class="data-table mt-2">
+        <thead><tr><th scope="col">Dia</th>{% for hour in report.heatmap.hours %}<th scope="col">{{ hour }}h</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in report.heatmap.rows %}<tr><th scope="row" class="pr-3 text-left font-medium">{{ row.label }}</th>{% for cell in row.cells %}<td>{% if cell.share is None %}–{% else %}{{ cell.share }}%{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </details>
+  {% else %}
+  <p class="py-8 text-center text-sm text-muted">Nenhum espaço aberto neste período.</p>
+  {% endif %}
+</section>
+
+<div class="grid gap-4 md:grid-cols-2">
+  <section class="card p-4" aria-labelledby="ocupacao-espaco">
+    <h2 id="ocupacao-espaco" class="mb-3">Ocupação por espaço</h2>
+    {% if report.ocupacao %}
+    <ul class="flex flex-col gap-2.5">
+      {% for row in report.ocupacao %}
+      <li>
+        <div class="mb-1 flex justify-between gap-3 text-sm"><span class="truncate">{{ row.espaco.nome }}</span><span class="font-medium tabular-nums">{{ row.occupancy }}%</span></div>
+        <div class="hbar" aria-hidden="true"><span style="width:{{ row.occupancy }}%"></span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-muted">Nenhum espaço ativo.</p>
+    {% endif %}
+  </section>
+  <section class="card p-4" aria-labelledby="horas-espaco">
+    <h2 id="horas-espaco" class="mb-3">Horas reservadas por espaço</h2>
+    {% include "relatorios/_ranked.html" with rows=report.horas_por_espaco kind="hours" %}
+  </section>
+  <section class="card p-4" aria-labelledby="por-modalidade">
+    <h2 id="por-modalidade" class="mb-3">Reservas por modalidade</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_modalidade kind="int" empty="As reservas deste período não têm modalidade registrada." %}
+  </section>
+  <section class="card p-4" aria-labelledby="por-origem-reserva">
+    <h2 id="por-origem-reserva" class="mb-3">Como reservaram</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_origem kind="int" %}
+  </section>
+</div>
+{% endblock %}

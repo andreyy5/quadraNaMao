@@ -3,11 +3,11 @@
 <ul class="flex flex-col gap-2.5">
   {% for row in rows %}
   <li>
-    <div class="mb-1 flex justify-between gap-3 text-sm"><span class="truncate">{{ row.label }}</span><span class="font-medium tabular-nums">{{ row.total|brl }}</span></div>
-    <div class="hbar" aria-hidden="true"><span style="width:{{ row.share }}%"></span></div>
+    <div class="mb-1 flex justify-between gap-3 text-sm"><span class="truncate">{{ row.label }}</span><span class="shrink-0 font-medium tabular-nums">{% if kind == "int" %}{{ row.total }}{% elif kind == "hours" %}{{ row.total|floatformat:1 }} h{% elif kind == "percent" %}{{ row.total }}%{% else %}{{ row.total|brl }}{% endif %}</span></div>
+    <div class="hbar {% if tone == 'out' %}is-out{% endif %}" aria-hidden="true"><span style="width:{{ row.share }}%"></span></div>
   </li>
   {% endfor %}
 </ul>
 {% else %}
-<p class="text-sm text-muted">Nada neste período.</p>
+<p class="text-sm text-muted">{{ empty|default:"Nada neste período." }}</p>
 {% endif %}

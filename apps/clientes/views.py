@@ -139,7 +139,19 @@ class PaletteView(TenantRequiredMixin, TemplateView):
                     "label": "Relatórios",
                     "icon": "chart",
                     "url": reverse("relatorios:relatorio"),
-                    "terms": "faturamento ocupacao",
+                    "terms": "faturamento resultado",
+                },
+                {
+                    "label": "Fluxo de caixa",
+                    "icon": "chart",
+                    "url": reverse("relatorios:fluxo"),
+                    "terms": "entradas saidas previsto",
+                },
+                {
+                    "label": "Ocupação por horário",
+                    "icon": "chart",
+                    "url": reverse("relatorios:reservas"),
+                    "terms": "ocupacao reservas horarios pico",
                 },
                 {
                     "label": "Estoque",

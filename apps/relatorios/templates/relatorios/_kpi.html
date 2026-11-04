@@ -1,0 +1,13 @@
+{% load ui %}
+<div class="stat">
+  <dt class="text-sm text-muted">{{ item.label }}</dt>
+  <dd class="stat-value {% if item.kind == 'money_alert' and item.value %}text-warning{% endif %}">{% if item.kind == "int" %}{{ item.value }}{% elif item.kind == "percent" %}{{ item.value }}%{% elif item.kind == "hours" %}{{ item.value|floatformat:1 }} h{% elif item.kind == "decimal" %}{{ item.value|floatformat:1 }}{% else %}{{ item.value|brl }}{% endif %}</dd>
+  {% if item.delta is not None %}
+  <dd class="mt-1 flex items-center gap-1 text-xs {% if item.good %}text-success{% elif item.good is False %}text-danger{% else %}text-muted{% endif %}">
+    <span aria-hidden="true">{% if item.delta > 0 %}▲{% elif item.delta < 0 %}▼{% else %}={% endif %}</span>
+    <span>{% if item.delta > 0 %}+{% endif %}{{ item.delta }}% <span class="text-muted">vs. período anterior</span></span>
+  </dd>
+  {% elif item.hint %}
+  <dd class="mt-1 text-xs text-muted">{{ item.hint }}</dd>
+  {% endif %}
+</div>

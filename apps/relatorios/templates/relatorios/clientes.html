@@ -1,0 +1,70 @@
+{% extends "relatorios/_layout.html" %}
+{% load ui clientes_ui %}
+
+{% block report %}
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+  {% for item in report.kpis %}{% include "relatorios/_kpi.html" %}{% endfor %}
+</dl>
+
+<section class="mb-6" aria-labelledby="top-clientes">
+  <h2 id="top-clientes" class="mb-2">Quem mais jogou</h2>
+  {% if report.top %}
+  <div class="card overflow-x-auto">
+    <table class="data-table w-full text-sm [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
+      <thead><tr><th scope="col" class="pt-3">Cliente</th><th scope="col" class="pt-3">Reservas</th><th scope="col" class="hidden pt-3 sm:table-cell">Horas</th><th scope="col" class="pt-3">Valor</th><th scope="col" class="hidden pt-3 md:table-cell">Última</th></tr></thead>
+      <tbody>
+        {% for row in report.top %}
+        <tr>
+          <td class="max-w-[10rem] truncate py-2"><a class="font-medium hover:text-primary" href="{% url 'clientes:detail' row.cliente.pk %}">{{ row.cliente.nome }}</a></td>
+          <td>{{ row.reservas }}</td>
+          <td class="hidden sm:table-cell">{{ row.horas|floatformat:1 }} h</td>
+          <td class="whitespace-nowrap">{{ row.valor|brl }}</td>
+          <td class="hidden md:table-cell">{{ row.ultima|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="card p-6 text-center text-sm text-muted">Nenhuma reserva neste período.</p>
+  {% endif %}
+</section>
+
+<div class="grid gap-4 md:grid-cols-2">
+  <section aria-labelledby="sumidos">
+    <h2 id="sumidos">Sumiram</h2>
+    <p class="mb-2 text-sm text-muted">Jogaram 3 vezes ou mais e não reservam há mais de {{ report.ausencia_dias }} dias. Vale chamar de volta.</p>
+    {% if report.sumidos %}
+    <ul class="card divide overflow-hidden">
+      {% for row in report.sumidos %}
+      <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+        <a class="min-w-0 flex-1" href="{% url 'clientes:detail' row.cliente.pk %}">
+          <span class="block truncate font-medium hover:text-primary">{{ row.cliente.nome }}</span>
+          <span class="block text-xs text-muted">{{ row.reservas }} reservas · última em {{ row.ultima|date:"d/m/Y" }}</span>
+        </a>
+        {% with wa=row.cliente.telefone|whatsapp_url %}{% if wa %}<a class="btn-icon text-success hover:text-success" target="_blank" rel="noopener" href="{{ wa }}" aria-label="Chamar {{ row.cliente.nome }} no WhatsApp" title="Chamar no WhatsApp">{% include "components/icon.html" with name="message" %}</a>{% endif %}{% endwith %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="card p-5 text-center text-sm text-muted">Ninguém sumido. Boa!</p>
+    {% endif %}
+  </section>
+  <section aria-labelledby="devem">
+    <h2 id="devem">Devem</h2>
+    <p class="mb-2 text-sm text-muted">Contas vencidas e em aberto, por cliente.</p>
+    {% if report.devedores %}
+    <ul class="card divide overflow-hidden">
+      {% for row in report.devedores %}
+      <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+        <a class="min-w-0 flex-1 truncate font-medium hover:text-primary" href="{% url 'clientes:detail' row.cliente.pk %}">{{ row.cliente.nome }}</a>
+        <span class="shrink-0 font-medium tabular-nums text-warning">{{ row.valor|brl }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="card p-5 text-center text-sm text-muted">Ninguém devendo.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "relatorios/_layout.html" %}
+{% load ui %}
+
+{% block report %}
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+  {% for item in report.kpis %}{% include "relatorios/_kpi.html" %}{% endfor %}
+</dl>
+
+<div class="mb-6 grid gap-4 md:grid-cols-3">
+  <section class="card p-4" aria-labelledby="mais-vendidos">
+    <h2 id="mais-vendidos" class="mb-3">Mais vendidos</h2>
+    {% include "relatorios/_ranked.html" with rows=report.top %}
+  </section>
+  <section class="card p-4" aria-labelledby="por-categoria">
+    <h2 id="por-categoria" class="mb-3">Por categoria</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_categoria %}
+  </section>
+  <section class="card p-4" aria-labelledby="vendas-forma">
+    <h2 id="vendas-forma" class="mb-3">Por forma de pagamento</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_forma %}
+  </section>
+</div>
+
+<section class="mb-6" aria-labelledby="produtos">
+  <h2 id="produtos" class="mb-2">Produtos</h2>
+  {% if report.produtos %}
+  <div class="card overflow-x-auto">
+    <table class="data-table w-full text-sm [&_td:first-child]:pl-4 [&_th:first-child]:pl-4">
+      <thead><tr><th scope="col" class="pt-3">Produto</th><th scope="col" class="pt-3">Qtd.</th><th scope="col" class="pt-3">Vendido</th><th scope="col" class="hidden pt-3 sm:table-cell">Margem</th><th scope="col" class="hidden pt-3 sm:table-cell">%</th></tr></thead>
+      <tbody>
+        {% for p in report.produtos %}
+        <tr>
+          <td class="max-w-[11rem] py-2"><span class="block truncate font-medium">{{ p.nome }}</span><span class="block text-xs text-muted">{{ p.categoria }}</span></td>
+          <td>{{ p.quantidade }}</td>
+          <td class="whitespace-nowrap">{{ p.receita|brl }}</td>
+          <td class="hidden whitespace-nowrap sm:table-cell">{% if p.margem is None %}<span class="text-muted">sem custo</span>{% else %}{{ p.margem|brl }}{% endif %}</td>
+          <td class="hidden sm:table-cell">{% if p.margem_pct is not None %}{{ p.margem_pct }}%{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-2 text-xs text-muted">A margem usa o custo atual de cada produto. Produto sem custo cadastrado fica de fora da margem.</p>
+  {% else %}
+  <p class="card p-6 text-center text-sm text-muted">Nenhuma venda neste período.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="estoque-baixo">
+  <div class="mb-2 flex items-center justify-between gap-2">
+    <h2 id="estoque-baixo">Estoque baixo agora</h2>
+    <a class="link-action" href="{% url 'estoque:list' %}?filtro=baixo">Ver estoque</a>
+  </div>
+  {% if report.estoque_baixo %}
+  <ul class="card divide overflow-hidden">
+    {% for produto in report.estoque_baixo %}
+    <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+      <span class="min-w-0 flex-1 truncate">{{ produto.nome }}</span>
+      <span class="shrink-0 tabular-nums {% if produto.estoque_atual <= 0 %}text-danger{% else %}text-warning{% endif %}">{{ produto.estoque_atual }} em estoque</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="card p-5 text-center text-sm text-muted">Nada abaixo do mínimo.</p>
+  {% endif %}
+</section>
+{% endblock %}

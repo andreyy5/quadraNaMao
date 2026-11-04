@@ -15,7 +15,7 @@
                aria-label="{% if show_day_labels %}{{ column.day|date:'l, d/m' }}{% else %}{{ column.espaco.nome }}{% endif %}">
         <header class="agenda-head {% if not show_day_labels and grid.columns|length > 1 %}hidden md:flex{% else %}flex{% endif %} items-center justify-center gap-2 truncate px-2 text-sm font-medium md:sticky md:top-0 {% if show_day_labels and column.day == today %}text-primary{% endif %}">
           {% if show_day_labels %}
-          <a class="rounded-lg px-1.5 py-1 capitalize transition-colors hover:bg-surface-2" href="{% url 'agenda:day' %}?data={{ column.day|date:'Y-m-d' }}">{{ column.day|date:"D d" }}</a>
+          <a class="inline-flex min-h-9 items-center rounded-lg px-1.5 capitalize transition-colors hover:bg-surface-2" href="{% url 'agenda:day' %}?data={{ column.day|date:'Y-m-d' }}">{{ column.day|date:"D d" }}</a>
           {% else %}
           <span class="agenda-col-dot" aria-hidden="true"></span> <span class="truncate">{{ column.espaco.nome }}</span>
           {% endif %}

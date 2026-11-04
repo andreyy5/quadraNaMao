@@ -6,6 +6,9 @@
   <div class="sheet-body">
     {% include "components/form_errors.html" %}
     {% include "financeiro/_resumo.html" %}
+    {% if caixa.tipo == "ONLINE" %}
+    <p class="rounded-xl border border-border bg-surface-2/60 px-3.5 py-3 text-sm">Este caixa só recebe os Pix confirmados pelo provedor. Confira o total acima com o extrato do banco e feche: o próximo Pix abre um caixa online novo.</p>
+    {% else %}
     <div>
       {% include "components/field.html" with field=form.saldo_conferido prefix="R$" %}
       {% if request.user.is_manager %}
@@ -17,6 +20,7 @@
       <p class="help">Conte o dinheiro da gaveta e digite o total. Pix e cartão não entram nessa conta.</p>
       {% endif %}
     </div>
+    {% endif %}
     {% include "components/field.html" with field=form.observacao %}
   </div>
   <div class="sheet-foot">

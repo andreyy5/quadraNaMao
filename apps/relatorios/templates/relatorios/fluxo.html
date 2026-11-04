@@ -1,0 +1,134 @@
+{% extends "relatorios/_layout.html" %}
+{% load ui %}
+
+{% block report %}
+<dl class="stagger mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+  <div class="stat"><dt class="flex items-center gap-1.5 text-sm text-muted"><span class="legend-key" aria-hidden="true"></span> Entradas</dt><dd class="stat-value">{{ report.entradas|brl }}</dd></div>
+  <div class="stat"><dt class="flex items-center gap-1.5 text-sm text-muted"><span class="legend-key is-out" aria-hidden="true"></span> Saídas</dt><dd class="stat-value">{{ report.saidas|brl }}</dd></div>
+  <div class="stat col-span-2 lg:col-span-1"><dt class="text-sm text-muted">Saldo do período</dt><dd class="stat-value {% if report.saldo < 0 %}text-danger{% endif %}">{{ report.saldo|brl }}</dd></div>
+</dl>
+
+<section class="card mb-6 p-4" aria-labelledby="fluxo-dia">
+  <div class="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <h2 id="fluxo-dia">Entradas e saídas por dia</h2>
+    <ul class="flex gap-4 text-xs text-muted" aria-label="Legenda">
+      <li class="flex items-center gap-1.5"><span class="legend-key" aria-hidden="true"></span> Entradas</li>
+      <li class="flex items-center gap-1.5"><span class="legend-key is-out" aria-hidden="true"></span> Saídas</li>
+    </ul>
+  </div>
+  {% if report.peak %}
+  <div class="flow" role="img" aria-label="Entradas acima da linha e saídas abaixo, por dia. Os valores estão na tabela logo abaixo.">
+    {% for d in report.series %}
+    <div class="flow-col" tabindex="0">
+      <span class="bars-tip"><strong class="font-semibold">{{ d.day|date:"d/m" }}</strong> · entrou {{ d.entradas|brl }} · saiu {{ d.saidas|brl }}</span>
+      <div class="flow-half is-up">{% if d.entradas %}<span class="flow-in" style="height:{{ d.up }}%"></span>{% endif %}</div>
+      <div class="flow-half is-down">{% if d.saidas > 0 %}<span class="flow-out" style="height:{{ d.down }}%"></span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-1 flex justify-between text-[11px] tabular-nums text-muted" aria-hidden="true"><span>{{ first|date:"d/m" }}</span><span>{{ last|date:"d/m" }}</span></div>
+  <details class="mt-3 text-sm">
+    <summary class="cursor-pointer text-muted transition-colors hover:text-text">Ver como tabela</summary>
+    <div class="overflow-x-auto">
+      <table class="data-table mt-2 w-full">
+        <thead><tr><th scope="col">Dia</th><th scope="col">Entradas</th><th scope="col">Saídas</th><th scope="col">Saldo</th><th scope="col">Acumulado</th></tr></thead>
+        <tbody>
+          {% for d in report.series %}{% if d.entradas or d.saidas %}
+          <tr><td>{{ d.day|date:"d/m" }}</td><td>{{ d.entradas|brl }}</td><td>{{ d.saidas|brl }}</td><td>{{ d.saldo|brl }}</td><td>{{ d.acumulado|brl }}</td></tr>
+          {% endif %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% else %}
+  <p class="py-8 text-center text-sm text-muted">Nenhuma entrada ou saída neste período.</p>
+  {% endif %}
+</section>
+
+<div class="mb-3 grid gap-4 md:grid-cols-2">
+  <section class="card p-4" aria-labelledby="entradas-origem">
+    <h2 id="entradas-origem" class="mb-3">Entradas por origem</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_origem tone="" %}
+  </section>
+  <section class="card p-4" aria-labelledby="saidas-categoria">
+    <h2 id="saidas-categoria" class="mb-3">Saídas por categoria</h2>
+    {% include "relatorios/_ranked.html" with rows=report.por_categoria tone="out" %}
+  </section>
+</div>
+<p class="mb-8 text-xs text-muted">
+  Dinheiro colocado na gaveta ({{ report.gaveta_colocado|brl }}) e retirado dela ({{ report.gaveta_retirado|brl }}) é movimento interno e não entra no fluxo.
+  Contas pagas no banco contam na data da baixa.
+</p>
+
+{% with previsto=report.previsto %}
+<section aria-labelledby="previsto">
+  <div class="mb-3">
+    <h2 id="previsto">Próximos 30 dias</h2>
+    <p class="text-sm text-muted">Contas em aberto que vencem de {{ previsto.first|date:"d/m" }} a {{ previsto.last|date:"d/m" }}, incluindo as reservas ainda não pagas.</p>
+  </div>
+  <dl class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div class="stat"><dt class="text-sm text-muted">A receber</dt><dd class="stat-value">{{ previsto.receber|brl }}</dd></div>
+    <div class="stat"><dt class="text-sm text-muted">A pagar</dt><dd class="stat-value">{{ previsto.pagar|brl }}</dd></div>
+    <div class="stat col-span-2 lg:col-span-1"><dt class="text-sm text-muted">Saldo previsto</dt><dd class="stat-value {% if previsto.saldo < 0 %}text-danger{% endif %}">{{ previsto.saldo|brl }}</dd></div>
+  </dl>
+  {% if previsto.atrasado_receber or previsto.atrasado_pagar %}
+  <p class="mb-4 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-sm">
+    <span class="font-medium">Já vencido:</span>
+    <a class="underline-offset-4 hover:underline" href="{% url 'financeiro:receber' %}?filtro=atrasadas">{{ previsto.atrasado_receber|brl }} a receber</a>
+    <a class="underline-offset-4 hover:underline" href="{% url 'financeiro:pagar' %}?filtro=atrasadas">{{ previsto.atrasado_pagar|brl }} a pagar</a>
+  </p>
+  {% endif %}
+  <div class="grid gap-4 md:grid-cols-[3fr_2fr]">
+    <div>
+      {# No celular, lista: a tabela de cinco colunas não cabe sem cortar o acumulado. #}
+      <ul class="card divide overflow-hidden sm:hidden">
+        {% for semana in previsto.semanas %}
+        <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+          <div class="min-w-0 flex-1">
+            <p class="font-medium tabular-nums">{{ semana.first|date:"d/m" }} a {{ semana.last|date:"d/m" }}</p>
+            <p class="text-xs tabular-nums text-muted">entra {{ semana.receber|brl }} · sai {{ semana.pagar|brl }}</p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="font-medium tabular-nums {% if semana.acumulado < 0 %}text-danger{% endif %}">{{ semana.acumulado|brl }}</p>
+            <p class="text-xs text-muted">acumulado</p>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="card hidden overflow-x-auto p-4 sm:block">
+        <table class="data-table w-full whitespace-nowrap text-sm">
+          <thead><tr><th scope="col">Semana</th><th scope="col">Entra</th><th scope="col">Sai</th><th scope="col">Saldo</th><th scope="col">Acumulado</th></tr></thead>
+          <tbody>
+            {% for semana in previsto.semanas %}
+            <tr>
+              <td>{{ semana.first|date:"d/m" }}–{{ semana.last|date:"d/m" }}</td>
+              <td>{{ semana.receber|brl }}</td>
+              <td>{{ semana.pagar|brl }}</td>
+              <td>{{ semana.saldo|brl }}</td>
+              <td class="{% if semana.acumulado < 0 %}text-danger{% endif %}">{{ semana.acumulado|brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3 class="mb-2 text-sm font-medium">Próximas contas a pagar</h3>
+      {% if previsto.proximas_contas %}
+      <ul class="card divide overflow-hidden">
+        {% for conta in previsto.proximas_contas %}
+        <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
+          <span class="w-12 shrink-0 font-semibold tabular-nums">{{ conta.vencimento|date:"d/m" }}</span>
+          <span class="min-w-0 flex-1 truncate">{{ conta.descricao }}</span>
+          <span class="shrink-0 font-medium tabular-nums">{{ conta.saldo|brl }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="card p-5 text-center text-sm text-muted">Nada vencendo nos próximos 30 dias.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endwith %}
+{% endblock %}

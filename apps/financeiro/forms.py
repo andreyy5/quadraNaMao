@@ -49,6 +49,15 @@ class CloseRegisterForm(StyledFormMixin, forms.Form):
         widget=forms.TextInput(attrs={"placeholder": "Se sobrou ou faltou, conte o que houve"}),
     )
 
+    def __init__(self, *args, online=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if online:
+            # O caixa online só recebe Pix: não há gaveta para contar, a conferência é com o extrato.
+            del self.fields["saldo_conferido"]
+            self.fields["observacao"].widget.attrs[
+                "placeholder"
+            ] = "Ex.: conferido com o extrato do dia 03/11"
+
 
 class ReverseEntryForm(StyledFormMixin, forms.Form):
     motivo = forms.CharField(

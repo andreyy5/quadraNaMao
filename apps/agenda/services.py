@@ -65,6 +65,16 @@ class NoSpaceAvailable(ReservationError):
         super().__init__(f"Nenhum espaço{alvo} livre nesse horário. Escolha outro horário.")
 
 
+class BelowAmountPaid(ReservationError):
+    def __init__(self, valor_pago):
+        from apps.estabelecimentos.templatetags.ui import brl
+
+        super().__init__(
+            f"Esta reserva já tem {brl(valor_pago)} recebidos. O valor não pode ficar abaixo disso: "
+            "se for devolver dinheiro, estorne o recebimento no caixa antes."
+        )
+
+
 class TenantMismatch(ReservationError):
     def __init__(self):
         super().__init__("Espaço e cliente não pertencem ao mesmo estabelecimento.")
@@ -449,6 +459,12 @@ def update_reservation(
     moved = reserva.espaco_id != espaco.pk or reserva.inicio != inicio or reserva.fim != fim
     with transaction.atomic():
         _lock_spaces(espaco, reserva.espaco)
+        # O valor pago vem do banco: a cópia na mão de quem edita pode ser de antes de um recebimento.
+        valor_pago = (
+            Reserva.all_tenants.select_for_update().values_list("valor_pago", flat=True).get(pk=reserva.pk)
+        )
+        if valor_total < valor_pago:
+            raise BelowAmountPaid(valor_pago)
         if moved:
             _check_available(espaco, inicio, fim)
         detalhes = ""
@@ -661,31 +677,66 @@ def day_summary(estabelecimento, day):
     }
 
 
-def occupancy_by_space(estabelecimento, first, last):
-    """Ocupação de cada espaço no período, em % das horas abertas."""
+def _split_by_hour(inicio, fim, midnight):
+    """Minutos do período em cada hora, contada desde a meia-noite do dia de operação (25 = 1h da madrugada)."""
+    cursor = (inicio - midnight).total_seconds() / 60
+    end = (fim - midnight).total_seconds() / 60
+    while cursor < end:
+        hour = int(cursor // 60)
+        step = min(end, (hour + 1) * 60)
+        yield hour, step - cursor
+        cursor = step
+
+
+def occupancy_details(estabelecimento, first, last):
+    """Minutos reservados e abertos no período, por espaço e por dia da semana × hora.
+
+    Bloqueios e horários fechados ficam fora da conta: ocupação é o que foi reservado do que dava para reservar.
+    """
     espacos = list(
         Espaco.all_tenants.filter(estabelecimento=estabelecimento, ativo=True).select_related(
             "estabelecimento"
         )
     )
+    details = {
+        "espacos": espacos,
+        "busy_space": Counter(),
+        "open_space": Counter(),
+        "busy_slot": Counter(),
+        "open_slot": Counter(),
+    }
     if not espacos:
-        return []
+        return details
+    tz = estabelecimento.timezone
     days = [first + timedelta(days=offset) for offset in range((last - first).days + 1)]
-    grid = _build_grid([(espaco, day) for espaco in espacos for day in days], estabelecimento.timezone)
-    busy = Counter()
-    available = Counter()
+    grid = _build_grid([(espaco, day) for espaco in espacos for day in days], tz)
     for column in grid.columns:
+        midnight = datetime.combine(column.day, datetime.min.time(), tzinfo=tz)
+        weekday = column.day.weekday()
         for cell in column.cells:
-            if cell.kind in ("reserved", "free"):
-                available[column.espaco.pk] += cell.minutes
-            if cell.kind == "reserved":
-                busy[column.espaco.pk] += cell.minutes
+            if cell.kind not in ("reserved", "free"):
+                continue
+            reserved = cell.kind == "reserved"
+            details["open_space"][column.espaco.pk] += cell.minutes
+            if reserved:
+                details["busy_space"][column.espaco.pk] += cell.minutes
+            for hour, minutes in _split_by_hour(cell.inicio, cell.fim, midnight):
+                details["open_slot"][(weekday, hour)] += minutes
+                if reserved:
+                    details["busy_slot"][(weekday, hour)] += minutes
+    return details
+
+
+def occupancy_by_space(estabelecimento, first, last, details=None):
+    """Ocupação de cada espaço no período, em % das horas abertas."""
+    details = details or occupancy_details(estabelecimento, first, last)
+    busy, available = details["busy_space"], details["open_space"]
     rows = [
         {
             "espaco": espaco,
             "occupancy": round(busy[espaco.pk] * 100 / available[espaco.pk]) if available[espaco.pk] else 0,
         }
-        for espaco in espacos
+        for espaco in details["espacos"]
     ]
     return sorted(rows, key=lambda row: row["occupancy"], reverse=True)
 
