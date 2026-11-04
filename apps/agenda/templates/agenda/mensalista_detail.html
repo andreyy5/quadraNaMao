@@ -2,7 +2,7 @@
 {% load ui %}
 
 {% block title %}{{ mensalista.cliente.nome }} · Mensalista · {{ PRODUCT_NAME }}{% endblock %}
-{% block main_width %}max-w-2xl{% endblock %}
+{% block main_width %}max-w-4xl{% endblock %}
 
 {% block content %}
 <a class="mb-3 inline-flex min-h-10 items-center gap-1 text-sm text-muted hover:text-text" href="{% url 'agenda:mensalistas' %}">{% include "components/icon.html" with name="left" %} Mensalistas</a>

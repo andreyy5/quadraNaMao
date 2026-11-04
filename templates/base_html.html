@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#05080f">
   <title>{% block title %}{{ PRODUCT_NAME }}{% endblock %}</title>
-  <script>try { var m = localStorage.getItem("qnm-mode"); if (m) document.documentElement.dataset.mode = m; } catch (e) {}</script>
+  <script>try { var d = document.documentElement, m = localStorage.getItem("qnm-mode"), s = localStorage.getItem("qnm-sidebar"); if (m) d.dataset.mode = m; d.dataset.sidebar = s || (innerWidth < 1280 ? "collapsed" : "expanded"); } catch (e) {}</script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <script defer src="{% static 'vendor/htmx.min.js' %}"></script>

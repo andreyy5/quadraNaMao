@@ -130,3 +130,36 @@ def test_whatsapp_url_is_empty_for_anonymized_client():
     assert whatsapp_url("+5511987650001") == "https://wa.me/5511987650001"
     assert whatsapp_url("anon-12") == ""
     assert whatsapp_url("") == ""
+
+
+def test_list_shows_games_last_played_and_overdue(owner_client, tenant, espaco, cliente):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.agenda.services import cancel_reservation, create_reservation
+    from conftest import at
+
+    past = timezone.localdate() - timedelta(days=5)
+    create_reservation(espaco, cliente, at(10, day=past), at(11, day=past))
+    cancel_reservation(create_reservation(espaco, cliente, at(12, day=past), at(13, day=past)))
+    future = timezone.localdate() + timedelta(days=5)
+    create_reservation(espaco, cliente, at(10, day=future), at(11, day=future))
+
+    row = owner_client.get(reverse("clientes:list")).context["clientes"][0]
+    assert row.n_reservas == 2  # a cancelada não conta
+    assert timezone.localtime(row.ultima_reserva).date() == past  # o jogo futuro não é "último"
+    assert row.em_atraso == 100
+
+
+def test_list_keeps_alphabetical_order(owner_client, tenant):
+    from conftest import make_cliente
+
+    for nome, telefone in [
+        ("Zeca", "+5511977770001"),
+        ("Ana", "+5511977770002"),
+        ("Maria", "+5511977770003"),
+    ]:
+        make_cliente(tenant, nome, telefone)
+    nomes = [c.nome for c in owner_client.get(reverse("clientes:list")).context["clientes"]]
+    assert nomes == sorted(nomes)

@@ -2,9 +2,10 @@ import unicodedata
 
 from django.conf import settings
 from django.contrib import messages
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Max, OuterRef, Q, Subquery, Sum
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
 from apps.agenda.models import Reserva
@@ -22,7 +23,28 @@ class ClienteListView(TenantRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        return search_clients(self.request.GET.get("q"))
+        # Em tela larga a lista mostra o histórico de cada cliente; as contas vão por subconsulta
+        # para não multiplicar a contagem de reservas.
+        validas = ~Q(reservas__status=Reserva.Status.CANCELADA)
+        em_atraso = (
+            ContaReceber.objects.filter(
+                cliente=OuterRef("pk"), status=ContaBase.Status.ABERTA, vencimento__lt=timezone.localdate()
+            )
+            .values("cliente")
+            .annotate(total=Sum(F("valor") - F("valor_pago")))
+            .values("total")
+        )
+        return (
+            search_clients(self.request.GET.get("q"))
+            .annotate(
+                n_reservas=Count("reservas", filter=validas),
+                ultima_reserva=Max(
+                    "reservas__inicio", filter=validas & Q(reservas__inicio__lte=timezone.now())
+                ),
+                em_atraso=Subquery(em_atraso),
+            )
+            .order_by("nome", "pk")
+        )  # com agrupamento, o Django não aplica a ordem padrão
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

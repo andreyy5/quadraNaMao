@@ -98,6 +98,9 @@
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
+  /* Em monitor grande, letras, espaços e larguras crescem juntos: a tela não fica miúda no meio. */
+  @media (min-width: 1600px) { html { font-size: 106.25%; } }
+  @media (min-width: 2200px) { html { font-size: 112.5%; } }
 
   body {
     @apply min-h-dvh font-sans text-[15px] leading-relaxed;
@@ -457,8 +460,40 @@
     @apply relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted hover:bg-surface-2/70 hover:text-text;
     transition: color 0.15s ease, background-color 0.15s ease;
   }
+  /* Menu lateral retrátil: o estado fica salvo no aparelho (data-sidebar no <html>). */
+  .sidebar { width: 15rem; transition: width 0.2s ease; }
+  .sidebar-chevron { transform-box: fill-box; transform-origin: center; transition: transform 0.2s ease; }
+  [data-sidebar="collapsed"] .sidebar { width: 4.5rem; }
+  [data-sidebar="collapsed"] .sidebar .sidebar-label { display: none; }
+  [data-sidebar="collapsed"] .sidebar .sidebar-chevron { transform: scaleX(-1); }
+  [data-sidebar="collapsed"] .sidebar .sidebar-brand { @apply flex justify-center px-0; }
+  [data-sidebar="collapsed"] .sidebar .wordmark > span { display: none; }
+  [data-sidebar="collapsed"] .sidebar :is(.nav-side, .search-trigger, .register-pill) { @apply justify-center px-0; }
+  [data-sidebar="collapsed"] .sidebar .btn-primary { @apply px-0; }
+  [data-sidebar="collapsed"] .sidebar .sidebar-user { @apply justify-center; }
+  [data-sidebar="collapsed"] .sidebar .sidebar-foot { @apply flex-col gap-1; }
+  .sidebar-nav { scrollbar-width: none; }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+  /* Tela baixa (notebook de 768 px): itens um pouco mais justos antes de precisar rolar. */
+  @media (max-height: 820px) {
+    .sidebar .nav-side { min-height: 2.5rem; }
+    .sidebar .sidebar-brand { margin-bottom: 0.75rem; }
+    .sidebar .btn-primary { margin-bottom: 0.75rem; }
+    [data-sidebar="collapsed"] .sidebar .nav-side { min-height: 2.25rem; }
+    [data-sidebar="collapsed"] .sidebar .sidebar-foot .btn-icon { min-height: 2.25rem; }
+  }
+  /* Recolhido, o avatar sai (nome e estabelecimento ficam na dica) para sobrar altura. */
+  [data-sidebar="collapsed"] .sidebar .sidebar-user { display: none; }
+  /* Dica com o nome do item no menu recolhido. Fica fora do menu para a rolagem não cortar. */
+  .sidebar-tip {
+    @apply pointer-events-none fixed z-[60] -translate-y-1/2 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-text;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+    animation: rise 0.12s ease;
+  }
+  .sidebar-tip[hidden] { display: none; }
   .nav-side svg { transition: transform 0.18s ease, filter 0.2s ease; }
   .nav-side:hover svg { transform: translateX(2px); }
+  [data-sidebar="collapsed"] .nav-side:hover svg { transform: none; }
   .nav-side.is-active { @apply bg-primary/10 font-medium text-text; }
   .nav-side.is-active svg { @apply text-primary; filter: drop-shadow(0 0 6px rgb(var(--color-primary) / var(--glow))); }
   .nav-side.is-active::before {
@@ -562,12 +597,14 @@
   }
   .slot-free:hover .slot-plus,
   .slot-free:focus-visible .slot-plus { @apply opacity-100; }
+  /* No computador, horário livre é espaço vazio na grade: hora e preço aparecem ao passar o mouse.
+     No toque não há mouse, então ele continua visível (regra mais abaixo). */
   @media (hover: hover) {
-    .slot-free.is-quiet { border-color: rgb(var(--color-border) / 0.2); }
-    .slot-free.is-quiet > span:not(.slot-plus) { opacity: 0; transition: opacity 0.15s ease; }
-    .slot-free.is-quiet:hover > span:not(.slot-plus),
-    .slot-free.is-quiet:focus-visible > span:not(.slot-plus) { opacity: 0.9; }
-    .slot-free.is-quiet:hover { border-color: rgb(var(--color-primary)); }
+    .slot-free { border-color: transparent; }
+    .slot-free > span:not(.slot-plus) { opacity: 0; transition: opacity 0.15s ease; }
+    .slot-free:hover > span:not(.slot-plus),
+    .slot-free:focus-visible > span:not(.slot-plus) { opacity: 0.9; }
+    .slot-free:hover { border-color: rgb(var(--color-primary)); }
   }
 
   .slot-reserved {

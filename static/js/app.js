@@ -166,6 +166,64 @@
     items[paletteIndex].scrollIntoView({ block: "nearest" });
   }
 
+  /* Menu lateral retrátil */
+  const SIDEBAR_KEY = "qnm-sidebar";
+
+  function syncSidebarToggle() {
+    const collapsed = document.documentElement.dataset.sidebar === "collapsed";
+    const label = collapsed ? "Expandir o menu" : "Recolher o menu";
+    document.querySelectorAll("[data-sidebar-toggle]").forEach((button) => {
+      button.setAttribute("aria-label", label);
+      button.setAttribute("title", `${label} ([)`);
+      button.setAttribute("aria-expanded", String(!collapsed));
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-sidebar-toggle]")) return;
+    const collapsed = document.documentElement.dataset.sidebar !== "collapsed";
+    document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "expanded";
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? "collapsed" : "expanded");
+    } catch (error) {
+      /* Sem armazenamento, vale só para esta página. */
+    }
+    syncSidebarToggle();
+  });
+  document.addEventListener("DOMContentLoaded", syncSidebarToggle);
+  document.addEventListener("htmx:afterSettle", syncSidebarToggle);
+
+  let sidebarTip = null;
+
+  function showSidebarTip(target) {
+    if (document.documentElement.dataset.sidebar !== "collapsed") return hideSidebarTip();
+    if (!sidebarTip || !sidebarTip.isConnected) {
+      sidebarTip = document.createElement("div");
+      sidebarTip.className = "sidebar-tip";
+      sidebarTip.setAttribute("role", "tooltip");
+      document.body.appendChild(sidebarTip);
+    }
+    const box = target.getBoundingClientRect();
+    sidebarTip.textContent = target.dataset.tip;
+    sidebarTip.style.top = `${box.top + box.height / 2}px`;
+    sidebarTip.style.left = `${box.right + 12}px`;
+    sidebarTip.hidden = false;
+  }
+
+  function hideSidebarTip() {
+    if (sidebarTip) sidebarTip.hidden = true;
+  }
+
+  ["mouseover", "focusin"].forEach((type) =>
+    document.addEventListener(type, (event) => {
+      const target = event.target.closest(".sidebar [data-tip]");
+      if (target) showSidebarTip(target);
+      else hideSidebarTip();
+    }),
+  );
+  document.addEventListener("click", hideSidebarTip);
+  document.addEventListener("scroll", hideSidebarTip, true);
+
   /* Atalhos de teclado */
   function isTyping(element) {
     return element.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName);
@@ -197,6 +255,7 @@
       ArrowLeft: "[data-agenda-previous]",
       ArrowRight: "[data-agenda-next]",
       "/": "[data-palette-open]",
+      "[": "[data-sidebar-toggle]",
     };
     const selector = shortcuts[event.key];
     if (!selector) return;

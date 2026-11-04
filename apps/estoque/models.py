@@ -61,6 +61,13 @@ class Produto(TenantModel):
         return self.controla_estoque and self.estoque_atual <= self.estoque_minimo
 
     @property
+    def margem_percentual(self):
+        """Quanto do preço sobra depois do custo, em %. Sem custo ou sem preço, não dá para saber."""
+        if self.custo is None or not self.preco_venda:
+            return None
+        return round((self.preco_venda - self.custo) * 100 / self.preco_venda)
+
+    @property
     def icone(self):
         """Nome do ícone da categoria em components/icon.html."""
         return self.categoria.lower()

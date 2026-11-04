@@ -2,7 +2,7 @@
 {% load clientes_ui ui %}
 
 {% block title %}Clientes · {{ PRODUCT_NAME }}{% endblock %}
-{% block main_width %}max-w-2xl{% endblock %}
+{% block main_width %}max-w-5xl{% endblock %}
 
 {% block content %}
 <div class="mb-5 flex items-center justify-between gap-3">
@@ -20,11 +20,23 @@
 <div id="client-list">
   {% if clientes %}
   <div class="card divide overflow-hidden">
+    <div class="hidden items-center gap-3 px-4 py-2 text-xs font-medium text-muted md:flex" aria-hidden="true">
+      <span class="w-9 shrink-0"></span>
+      <span class="min-w-0 flex-1">Cliente</span>
+      <span class="w-36 shrink-0">Telefone</span>
+      <span class="w-20 shrink-0 text-right">Reservas</span>
+      <span class="hidden w-28 shrink-0 text-right lg:block">Último jogo</span>
+      <span class="w-28 shrink-0 text-right">Em atraso</span>
+      <span class="w-4 shrink-0"></span>
+    </div>
     {% for cliente in clientes %}
     <a class="row-link" href="{% url 'clientes:detail' cliente.pk %}">
       <span class="avatar" aria-hidden="true">{{ cliente.nome|initials }}</span>
       <span class="min-w-0 flex-1 truncate font-medium">{{ cliente.nome }}</span>
-      <span class="hidden text-sm tabular-nums text-muted sm:inline">{{ cliente.telefone|telefone }}</span>
+      <span class="hidden w-36 shrink-0 text-sm tabular-nums text-muted sm:inline md:block">{{ cliente.telefone|telefone }}</span>
+      <span class="hidden w-20 shrink-0 text-right text-sm tabular-nums md:block">{{ cliente.n_reservas }}</span>
+      <span class="hidden w-28 shrink-0 text-right text-sm tabular-nums text-muted lg:block">{% if cliente.ultima_reserva %}{{ cliente.ultima_reserva|date:"d/m/Y" }}{% else %}–{% endif %}</span>
+      <span class="hidden w-28 shrink-0 text-right text-sm tabular-nums md:block {% if cliente.em_atraso %}font-medium text-warning{% else %}text-muted{% endif %}">{% if cliente.em_atraso %}{{ cliente.em_atraso|brl }}{% else %}–{% endif %}</span>
       <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
     </a>
     {% endfor %}

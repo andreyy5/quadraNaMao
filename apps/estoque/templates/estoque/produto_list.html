@@ -3,6 +3,8 @@
 
 {% block title %}Estoque · {{ PRODUCT_NAME }}{% endblock %}
 
+{% block main_width %}max-w-5xl{% endblock %}
+
 {% block content %}
 <div class="mb-5 flex items-center justify-between gap-3">
   <h1>Estoque</h1>
@@ -31,18 +33,33 @@
 <div id="product-list">
   {% if produtos %}
   <div class="card divide overflow-hidden">
+    <div class="hidden items-center gap-3 py-2 pl-4 pr-3 text-xs font-medium text-muted md:flex" aria-hidden="true">
+      <span class="w-9 shrink-0"></span>
+      <span class="min-w-0 flex-1">Produto</span>
+      <span class="w-24 shrink-0 text-right">Preço</span>
+      <span class="hidden w-24 shrink-0 text-right lg:block">Custo</span>
+      <span class="hidden w-20 shrink-0 text-right lg:block">Margem</span>
+      <span class="w-36 shrink-0 text-right">Estoque</span>
+      <span class="w-10 shrink-0"></span>
+    </div>
     {% for produto in produtos %}
     <div class="flex items-center gap-2 pr-3 transition-colors hover:bg-surface-2/70">
       <a class="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4" href="{% url 'estoque:detail' produto.pk %}">
         <span class="product-icon shrink-0">{% include "components/icon.html" with name=produto.icone %}</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate font-medium">{{ produto.nome }}</span>
-          <span class="block truncate text-sm tabular-nums text-muted">{{ produto.preco_venda|brl }}{% if produto.custo is not None %} · custo {{ produto.custo|brl }}{% endif %}</span>
+          <span class="block truncate text-sm tabular-nums text-muted md:hidden">{{ produto.preco_venda|brl }}{% if produto.custo is not None %} · custo {{ produto.custo|brl }}{% endif %}</span>
+          <span class="hidden truncate text-sm text-muted md:block">{{ produto.get_categoria_display }}</span>
         </span>
-        {% include "estoque/_stock_badge.html" %}
+        <span class="hidden w-24 shrink-0 text-right text-sm font-medium tabular-nums md:block">{{ produto.preco_venda|brl }}</span>
+        <span class="hidden w-24 shrink-0 text-right text-sm tabular-nums text-muted lg:block">{% if produto.custo is not None %}{{ produto.custo|brl }}{% else %}–{% endif %}</span>
+        <span class="hidden w-20 shrink-0 text-right text-sm tabular-nums text-muted lg:block">{% if produto.margem_percentual is not None %}{{ produto.margem_percentual }}%{% else %}–{% endif %}</span>
+        <span class="flex shrink-0 justify-end md:w-36">{% include "estoque/_stock_badge.html" %}</span>
       </a>
       {% if produto.controla_estoque %}
       <button class="btn-icon min-h-10 w-10" type="button" hx-get="{% url 'estoque:movimentar' produto.pk %}" hx-target="#modal-body" aria-label="Movimentar {{ produto.nome }}" title="Comprei, perdi ou contei">{% include "components/icon.html" with name="plus" %}</button>
+      {% else %}
+      <span class="hidden w-10 shrink-0 md:block" aria-hidden="true"></span>
       {% endif %}
     </div>
     {% endfor %}

@@ -2,7 +2,7 @@
 {% load ui %}
 
 {% block title %}Mensalistas · {{ PRODUCT_NAME }}{% endblock %}
-{% block main_width %}max-w-3xl{% endblock %}
+{% block main_width %}max-w-5xl{% endblock %}
 
 {% block content %}
 <div class="mb-4 flex items-center justify-between gap-3">
@@ -19,7 +19,7 @@
 </div>
 
 {% if mensalistas %}
-<div class="stagger flex flex-col gap-2.5">
+<div class="stagger grid gap-2.5 lg:grid-cols-2">
   {% for mensalista in mensalistas %}
   <a class="card card-hover flex items-center gap-3 p-4" href="{% url 'agenda:mensalista_detail' mensalista.pk %}" data-theme="{{ mensalista.espaco.tema }}">
     <span class="w-20 shrink-0 text-center">

@@ -2,6 +2,7 @@
 {% load clientes_ui ui %}
 
 {% block title %}Hoje · {{ PRODUCT_NAME }}{% endblock %}
+{% block main_width %}max-w-6xl{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex items-center justify-between gap-3">
@@ -28,6 +29,8 @@
 </section>
 {% endif %}
 
+<div class="xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-6">
+<div class="min-w-0">
 {% if next_game %}
 <section class="neon-panel mb-4 p-5 md:p-6" data-theme="{{ next_game.espaco.tema }}" aria-labelledby="proximo-jogo">
   <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
@@ -88,6 +91,30 @@
 </section>
 {% endif %}
 
+
+
+
+{% if next_games %}
+<section class="mb-6" aria-labelledby="proximos">
+  <h2 id="proximos" class="mb-2">Depois</h2>
+  <div class="card divide overflow-hidden">
+    {% for reserva in next_games %}
+    <button class="row-link w-full text-left" type="button" data-theme="{{ reserva.espaco.tema }}" hx-get="{% url 'agenda:reserva_detail' reserva.pk %}" hx-target="#modal-body">
+      <span class="w-14 shrink-0 font-semibold tabular-nums text-primary">{{ reserva.inicio|time:"H:i" }}</span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-medium">{{ reserva.cliente.nome }}</span>
+        <span class="block truncate text-sm text-muted">{{ reserva.espaco.nome }} · até {{ reserva.fim|time:"H:i" }}</span>
+      </span>
+      {% if reserva.status != "CONFIRMADA" %}{% include "components/status_badge.html" %}{% endif %}
+      <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
+    </button>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+</div>
+
+<aside class="min-w-0 xl:sticky xl:top-8" aria-label="Resumo do dia">
 {% if avisos %}
 <section class="mb-6" aria-labelledby="avisos-hoje">
   <h2 id="avisos-hoje" class="mb-2">Pedem atenção</h2>
@@ -107,7 +134,7 @@
     <h2 id="financeiro-hoje">Contas</h2>
     <a class="link-action" href="{% url 'relatorios:relatorio' %}">Ver relatórios</a>
   </div>
-  <div class="grid gap-3 sm:grid-cols-3">
+  <div class="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
     <a class="stat card-hover block" href="{% url 'financeiro:pagar' %}?filtro=atrasadas"><span class="block text-sm text-muted">A pagar em atraso</span><span class="stat-value block {% if bills.overdue.count %}text-warning{% endif %}">{{ bills.overdue.total|brl }}</span></a>
     <a class="stat card-hover block" href="{% url 'financeiro:pagar' %}"><span class="block text-sm text-muted">A pagar em 7 dias</span><span class="stat-value block">{{ bills.next_days.total|add:bills.today.total|brl }}</span></a>
     <a class="stat card-hover block" href="{% url 'financeiro:receber' %}?filtro=atrasadas"><span class="block text-sm text-muted">A receber em atraso</span><span class="stat-value block {% if receivables.overdue.count %}text-warning{% endif %}">{{ receivables.overdue.total|brl }}</span></a>
@@ -121,7 +148,7 @@
     <h2 id="vendas-hoje">Vendas de hoje</h2>
     <a class="link-action" href="{% url 'pdv:home' %}">Abrir o PDV</a>
   </div>
-  <div class="grid gap-3 sm:grid-cols-3">
+  <div class="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
     <a class="stat card-hover block" href="{% url 'pdv:vendas' %}"><span class="block text-sm text-muted">{{ sales.count }} venda{{ sales.count|pluralize }}</span><span class="stat-value block">{{ sales.total|brl }}</span></a>
     <a class="stat card-hover block" href="{% url 'pdv:comandas' %}"><span class="block text-sm text-muted">{{ sales.tabs_count }} comanda{{ sales.tabs_count|pluralize }} aberta{{ sales.tabs_count|pluralize }}</span><span class="stat-value block">{{ sales.tabs_total|brl }}</span></a>
     {% if request.user.is_manager %}
@@ -130,23 +157,6 @@
   </div>
 </section>
 {% endif %}
-
-{% if next_games %}
-<section aria-labelledby="proximos">
-  <h2 id="proximos" class="mb-2">Depois</h2>
-  <div class="card divide overflow-hidden">
-    {% for reserva in next_games %}
-    <button class="row-link w-full text-left" type="button" data-theme="{{ reserva.espaco.tema }}" hx-get="{% url 'agenda:reserva_detail' reserva.pk %}" hx-target="#modal-body">
-      <span class="w-14 shrink-0 font-semibold tabular-nums text-primary">{{ reserva.inicio|time:"H:i" }}</span>
-      <span class="min-w-0 flex-1">
-        <span class="block truncate font-medium">{{ reserva.cliente.nome }}</span>
-        <span class="block truncate text-sm text-muted">{{ reserva.espaco.nome }} · até {{ reserva.fim|time:"H:i" }}</span>
-      </span>
-      {% if reserva.status != "CONFIRMADA" %}{% include "components/status_badge.html" %}{% endif %}
-      <span class="row-chevron">{% include "components/icon.html" with name="right" %}</span>
-    </button>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+</aside>
+</div>
 {% endblock %}
