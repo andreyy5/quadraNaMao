@@ -79,7 +79,15 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 - Cada reserva gera sua conta a receber, com recebimento total ou parcial.
 - Contas a receber e a pagar com repetição semanal, mensal ou anual e alertas de vencimento.
 - Estorno em vez de edição: todo lançamento fica no histórico.
-- Relatórios de faturamento, formas de pagamento, espaços, ocupação e inadimplência.
+- Caixa esquecido aberto desde outro dia aparece em "Pedem atenção"; o caixa "Pix online" fecha conferindo com o extrato.
+
+**Relatórios** (dono e gerente; todos exportam CSV para o Excel)
+- **Visão geral:** faturamento, contas pagas, resultado, reservas e valor médio, comparados com o período anterior.
+- **Fluxo de caixa:** entradas e saídas por dia, por origem e por categoria, e o previsto para os próximos 30 dias por semana.
+- **Reservas:** ocupação por dia da semana e horário (mapa de calor), por espaço, cancelamentos, não comparecimentos, modalidades e antecedência.
+- **Clientes:** quem mais jogou, clientes novos, quem sumiu (para chamar de volta pelo WhatsApp) e quem deve.
+- **Vendas:** mais vendidos, categorias, margem estimada e estoque baixo.
+- **Caixas:** fechamentos com sobras e faltas por operador e caixas abertos agora.
 
 **Uso no dia a dia**
 - Modo escuro (padrão) e claro, layout pensado primeiro para o celular.
@@ -240,6 +248,7 @@ Os testes criam um banco temporário no próprio PostgreSQL. As regras críticas
 | Conflito de horário e reservas simultâneas | `apps/agenda/tests/` |
 | Venda, comanda e concorrência no estoque | `apps/pdv/tests/` |
 | Caixa, fechamento, estornos e contas | `apps/financeiro/tests/` |
+| Relatórios, fluxo de caixa, previsto e conferência do caixa | `apps/relatorios/tests/test_relatorios.py` |
 | Link público, Pix, expiração do sinal e pagamento atrasado | `apps/agenda/tests/test_online.py` |
 | Mensalistas, avisos e mensalidade | `apps/agenda/tests/test_mensalistas.py` |
 | WhatsApp: aceite, webhook assinado, status, SAIR, janela de 24 horas | `apps/whatsapp/tests/` |

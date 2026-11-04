@@ -63,7 +63,15 @@ Consequências a lembrar:
 
 **Recorrência.** A conta original guarda a repetição e as próximas são criadas até 31 dias à frente, sempre a partir da data original (dia 31 volta a ser 31 depois de fevereiro). Quem cria é uma tarefa diária do Celery e, como garantia, as telas de contas e a tela Hoje; a criação não duplica.
 
-**Cor dos gráficos.** O ciano dos botões é claro demais para área de dados e reprovou no validador de paleta no modo escuro. Os gráficos usam o token `chart` (`#0e9eb8` no escuro, `#006c9e` no claro), que passa nas checagens de faixa de claridade e contraste.
+**Cor dos gráficos.** O ciano dos botões é claro demais para área de dados e reprovou no validador de paleta no modo escuro. Os gráficos usam o token `chart` (`#0e9eb8` no escuro, `#006c9e` no claro), que passa nas checagens de faixa de claridade e contraste. As saídas do fluxo de caixa usam `chart-out` (laranja: `#d95926` no escuro, `#eb6834` no claro); o par ciano e laranja passou em todas as checagens nos dois modos, inclusive para daltonismo (ΔE 19,4). O mapa de calor usa só o ciano, mais forte onde a ocupação é maior, e todo gráfico tem a tabela com os mesmos números.
+
+**Relatórios pelo regime de caixa.** Dinheiro conta na data em que entrou ou saiu, e um estorno conta na data dele (não muda o passado). Despesa é conta paga: pelo caixa, vale o lançamento; pelo banco, a data da baixa, só quando não há lançamento de caixa em vigor para a conta, para um pagamento estornado e refeito no banco não contar duas vezes. Dinheiro colocado ou retirado da gaveta é movimento interno e fica fora do fluxo. O previsto soma as contas em aberto que vencem nos próximos 30 dias, por semana; as reservas futuras entram pela conta a receber de cada uma.
+
+**Período dos relatórios.** Até um ano. A ocupação monta a grade de cada dia de cada espaço, então olha no máximo os últimos 92 dias do período e avisa quando corta. A comparação da visão geral é com o período anterior de mesmo tamanho.
+
+**Conferência do caixa (revisão de novembro de 2026).** Três correções: o valor de uma reserva não pode mais ficar abaixo do que já foi recebido (antes a conta ficava paga com sobra escondida; agora é preciso estornar antes); o caixa "Pix online" fecha conferindo com o extrato, sem pedir dinheiro contado; e caixa de operador aberto desde outro dia aparece em "Pedem atenção" para dono e gerente. O restante do fluxo (abertura, sangria, recebimento parcial, estorno no caixa de quem estorna, fechamento às cegas) foi revisado e está coberto por testes, inclusive a conta que cruza fechamentos, fluxo e visão geral.
+
+**Celular.** Todas as telas foram conferidas em 360 e 390 px de largura e em tablet, sem rolagem para os lados fora das tabelas e gráficos que rolam de propósito. Links de texto têm área de toque maior que o desenho, e campos ficam com 16 px de letra, porque no iPhone um campo menor dá zoom ao tocar.
 
 **Saldo de estoque.** `Produto.estoque_atual` é uma cópia do saldo para consulta rápida e só muda em `estoque/services.py`, sempre com uma `MovimentacaoEstoque`. Os locks seguem uma ordem fixa (estabelecimento, venda, produtos por `pk`), para vendas simultâneas não venderem o mesmo item nem se bloquearem.
 
