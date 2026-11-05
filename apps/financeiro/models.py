@@ -332,10 +332,23 @@ class ContaReceber(ContaBase):
         related_name="conta",
         verbose_name="reserva",
     )
+    # Avisos automáticos pelo WhatsApp: um de cada por vencimento. Mudar o vencimento zera os dois.
+    aviso_vencimento_em = models.DateTimeField("lembrete do vencimento enviado em", null=True, blank=True)
+    aviso_atraso_em = models.DateTimeField("aviso de atraso enviado em", null=True, blank=True)
 
     class Meta(ContaBase.Meta):
         verbose_name = "conta a receber"
         verbose_name_plural = "contas a receber"
+
+    @property
+    def is_chargeable(self):
+        """Faz sentido cobrar o cliente. A conta da reserva só depois do jogo: antes, ela é paga no local."""
+        return (
+            self.is_open
+            and self.saldo > 0
+            and self.cliente_id is not None
+            and (not self.reserva_id or self.is_overdue)
+        )
 
 
 class ContaPagar(ContaBase):

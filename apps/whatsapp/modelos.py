@@ -74,6 +74,36 @@ MODELOS = {
             "Responda esta mensagem para remarcarmos o seu horário.",
             ("João", "chuva", "Areia 1", "qui., 05/11", "19:00"),
         ),
+        Modelo(
+            "pagamento_lembrete",
+            "Lembrete de conta a receber perto do vencimento, como a mensalidade.",
+            "Olá, {{1}}! Passando para lembrar de um pagamento na {{2}} com vencimento {{3}}: {{4}}, "
+            "no valor de {{5}}. Para ver os detalhes e pagar, acesse {{6}} . "
+            "Se já pagou, desconsidere esta mensagem.",
+            (
+                "João",
+                "Arena Demo",
+                "amanhã (06/11)",
+                "Mensalidade Areia 1",
+                "R$ 120,00",
+                "https://exemplo.com/r/arena/conta/abc",
+            ),
+        ),
+        Modelo(
+            "pagamento_atrasado",
+            "Aviso de conta a receber que venceu e continua em aberto.",
+            "Olá, {{1}}. Consta em aberto um pagamento na {{2}} que venceu em {{3}}: {{4}}, "
+            "no valor de {{5}}. Para ver os detalhes e pagar, acesse {{6}} . "
+            "Se já pagou, desconsidere esta mensagem.",
+            (
+                "João",
+                "Arena Demo",
+                "qui., 05/11",
+                "Mensalidade Areia 1",
+                "R$ 120,00",
+                "https://exemplo.com/r/arena/conta/abc",
+            ),
+        ),
     ]
 }
 

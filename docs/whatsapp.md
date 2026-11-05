@@ -2,7 +2,7 @@
 
 > **Módulo em espera.** Por causa do custo, o WhatsApp automático está desligado (`WHATSAPP_ENABLED=False`, o padrão): não aparece no menu e não manda nada. Para usar, ponha `WHATSAPP_ENABLED=True` no `.env` e siga este guia.
 
-O sistema já manda confirmações, lembretes, avisos de chuva e respostas da equipe, e recebe o que os clientes escrevem. Enquanto a Meta não estiver configurada, ele roda em **modo de teste**: tudo fica registrado em **WhatsApp** no menu, mas nada sai para o celular de ninguém.
+O sistema já manda confirmações, lembretes, avisos de chuva, cobranças de contas a receber e respostas da equipe, e recebe o que os clientes escrevem. Enquanto a Meta não estiver configurada, ele roda em **modo de teste**: tudo fica registrado em **WhatsApp** no menu, mas nada sai para o celular de ninguém.
 
 Para mandar de verdade, é preciso uma conta na Meta com a **WhatsApp Cloud API**. O sistema não usa a API oficial de terceiros nem automação do app: só a Cloud API, que é o caminho permitido pela Meta para empresas.
 
@@ -60,7 +60,7 @@ Com isso, o sistema passa a receber as mensagens dos clientes e a saber se cada 
 
 ### 6. Cadastrar os modelos de mensagem
 
-Fora das 24 horas seguintes a uma mensagem do cliente, a Meta só entrega **modelos aprovados**. Crie os seis abaixo no **Gerenciador do WhatsApp > Modelos de mensagem**, com:
+Fora das 24 horas seguintes a uma mensagem do cliente, a Meta só entrega **modelos aprovados**. Crie os oito abaixo no **Gerenciador do WhatsApp > Modelos de mensagem**, com:
 
 - **Categoria:** Utilidade
 - **Idioma:** Português (BR)
@@ -77,15 +77,19 @@ A Meta pede um exemplo para cada variável; use os da tabela. A aprovação cost
 | `reserva_cancelada` | Olá, {{1}}. Sua reserva em {{2}} de {{3}}, {{4}}, foi cancelada. Se quiser marcar outro horário, é só responder esta mensagem. | João · Arena Demo · qui., 05/11 · 19:00 |
 | `reserva_expirada` | Olá, {{1}}. O prazo para pagar o sinal da reserva em {{2}} de {{3}}, {{4}}, terminou e o horário foi liberado. Se ainda quiser jogar, faça um novo pedido. | João · Arena Demo · qui., 05/11 · 19:00 |
 | `aviso_remarcacao` | Olá, {{1}}. Por causa de {{2}}, não vai dar para usar {{3}} em {{4}}, {{5}}. Responda esta mensagem para remarcarmos o seu horário. | João · chuva · Areia 1 · qui., 05/11 · 19:00 |
+| `pagamento_lembrete` | Olá, {{1}}! Passando para lembrar de um pagamento na {{2}} com vencimento {{3}}: {{4}}, no valor de {{5}}. Para ver os detalhes e pagar, acesse {{6}} . Se já pagou, desconsidere esta mensagem. | João · Arena Demo · amanhã (06/11) · Mensalidade Areia 1 · R$ 120,00 · https://exemplo.com/r/arena/conta/abc |
+| `pagamento_atrasado` | Olá, {{1}}. Consta em aberto um pagamento na {{2}} que venceu em {{3}}: {{4}}, no valor de {{5}}. Para ver os detalhes e pagar, acesse {{6}} . Se já pagou, desconsidere esta mensagem. | João · Arena Demo · qui., 05/11 · Mensalidade Areia 1 · R$ 120,00 · https://exemplo.com/r/arena/conta/abc |
 
 Os textos de referência ficam em `apps/whatsapp/modelos.py`. Se mudar um texto lá, mude também na Meta (a Meta trata como um modelo novo, que precisa de aprovação).
 
-Se a Meta recusar o `sinal_pendente` por causa do link no corpo, a alternativa é um botão de link com sufixo variável; avise para o sistema ser ajustado.
+Os dois de pagamento precisam ficar em **Utilidade**: são avisos de uma conta que o cliente já tem. Se a Meta reclassificar como Marketing (texto com tom de promoção), cada mensagem passa a custar bem mais; não acrescente ofertas nesses textos.
+
+Se a Meta recusar o `sinal_pendente`, o `pagamento_lembrete` ou o `pagamento_atrasado` por causa do link no corpo, a alternativa é um botão de link com sufixo variável; avise para o sistema ser ajustado.
 
 ### 7. Ligar no sistema
 
 1. Entre como dono e abra **Ajustes > WhatsApp**. Os três itens de configuração devem aparecer em verde.
-2. Marque **Enviar mensagens pelo WhatsApp**, preencha o **ID do número (phone number ID)** do passo 1 e as horas de antecedência do lembrete, e salve.
+2. Marque **Enviar mensagens pelo WhatsApp**, preencha o **ID do número (phone number ID)** do passo 1 e as horas de antecedência do lembrete. Em **Contas a receber**, escolha quando lembrar do vencimento e quando avisar do atraso (os dois começam desligados). Salve.
 3. Em **Testar a ligação**, mande o modelo `hello_world` para o seu celular. Enquanto o app da Meta estiver em modo de desenvolvimento, o destinatário precisa estar cadastrado como número de teste no painel da Meta.
 4. Por fim, no painel do app da Meta, passe o app para o modo **Ao vivo** (exige o endereço de uma política de privacidade).
 
@@ -100,7 +104,19 @@ Se a Meta recusar o `sinal_pendente` por causa do link no corpo, a alternativa �
 | Reserva cancelada | `reserva_cancelada` | Na hora |
 | Sinal não pago no prazo | `reserva_expirada` | Quando o pedido expira |
 | Bloqueio (chuva, manutenção, evento) | `aviso_remarcacao` | Quando a equipe clica em **Avisar todos pelo WhatsApp** na tela do bloqueio |
+| Conta a receber perto do vencimento (mensalidade, evento, patrocínio) | `pagamento_lembrete` | No dia ou alguns dias antes, como definido em Ajustes |
+| Conta a receber vencida e ainda em aberto | `pagamento_atrasado` | Alguns dias depois do vencimento, como definido em Ajustes |
 | Resposta da equipe | Texto livre | Só nas 24 horas seguintes à última mensagem do cliente |
+
+Regras das cobranças:
+
+- Valem para as contas a receber com cliente, inclusive a mensalidade dos mensalistas. As contas das reservas ficam de fora: já têm confirmação e lembrete do jogo e são pagas no local.
+- Saem só das 9h às 20h, no fuso do estabelecimento, e no máximo um lembrete e um aviso de atraso por conta. Se a equipe mudar o vencimento, os avisos voltam a valer para a data nova.
+- Uma conta lançada há menos de 30 minutos espera, para dar tempo de receber no balcão.
+- O aviso de atraso que não saiu no dia certo (sistema fora do ar) ainda sai nos 3 dias seguintes. Contas mais antigas não recebem nada quando você liga o aviso.
+- O link abre uma página com a conta, o valor em aberto e o Pix (QR Code e copia e cola) da chave cadastrada em **Ajustes > Reservas online**. Quem confirma o pagamento é a equipe, dando baixa na conta.
+
+Mesmo com o módulo desligado, a lista de **Contas a receber** tem um botão verde de WhatsApp em cada conta que dá para cobrar. Ele abre o WhatsApp do celular de quem atende com o mesmo texto e o mesmo link, sem custo. Quem envia é a pessoa, então não fica no histórico do sistema.
 
 Regras que valem para tudo:
 
@@ -112,7 +128,7 @@ Regras que valem para tudo:
 
 ## Rotinas que precisam estar rodando
 
-O lembrete sai por uma tarefa do Celery que roda a cada 10 minutos. Em produção, deixe o worker e o agendador ligados (veja o README) ou, sem Celery, chame `manage.py rotinas` pelo cron a cada 10 minutos.
+O lembrete do jogo e as cobranças saem por tarefas do Celery que rodam a cada 10 minutos. Em produção, deixe o worker e o agendador ligados (veja o README) ou, sem Celery, chame `manage.py rotinas` pelo cron a cada 10 minutos.
 
 ## Problemas comuns
 

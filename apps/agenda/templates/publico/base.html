@@ -6,7 +6,7 @@
 <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pb-10 pt-6">
   <header class="mb-6 flex items-center justify-between gap-3">
     <div class="min-w-0">
-      <p class="eyebrow">Reserva online</p>
+      <p class="eyebrow">{% block eyebrow %}Reserva online{% endblock %}</p>
       <h1 class="truncate">{{ estabelecimento.nome }}</h1>
       {% if estabelecimento.endereco %}<p class="truncate text-sm text-muted">{{ estabelecimento.endereco }}</p>{% endif %}
     </div>
@@ -18,6 +18,6 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="mt-10 text-center text-xs text-muted">Reserva feita com {% include "components/wordmark.html" with class="text-xs" mark_class="h-3.5 w-3.5" %}</footer>
+  <footer class="mt-10 text-center text-xs text-muted">{% block footer_text %}Reserva feita com{% endblock %} {% include "components/wordmark.html" with class="text-xs" mark_class="h-3.5 w-3.5" %}</footer>
 </div>
 {% endblock %}

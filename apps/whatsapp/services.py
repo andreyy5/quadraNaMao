@@ -11,19 +11,29 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import F, Max, Q
 from django.utils import timezone
 
 from apps.agenda.models import Reserva
 from apps.clientes.models import Cliente
 from apps.estabelecimentos.models import Estabelecimento
 from apps.estabelecimentos.templatetags.ui import brl
+from apps.financeiro.cobranca import account_url
+from apps.financeiro.models import ContaBase, ContaReceber
 
 from .modelos import MODELO_TESTE, MODELOS
 from .models import Mensagem
 from .provider import ProviderError, get_provider
 
 WINDOW = timedelta(hours=24)
+WEEKDAYS = ["seg.", "ter.", "qua.", "qui.", "sex.", "sáb.", "dom."]
+# Cobrança só em horário comercial do estabelecimento, nunca de madrugada.
+CHARGE_HOURS = range(9, 20)
+# Conta recém-lançada: dá tempo de a equipe receber no balcão antes de sair o aviso.
+CHARGE_GRACE = timedelta(minutes=30)
+# Aviso de atraso que não saiu no dia (sistema fora do ar) ainda sai nos dias seguintes. Depois disso,
+# não: ao ligar o aviso, dívidas antigas não recebem mensagem de uma vez.
+CHARGE_CATCH_UP_DAYS = 3
 OPT_OUT_WORDS = {"sair", "parar", "stop", "descadastrar", "nao quero mais"}
 OPT_IN_WORDS = {"voltar", "quero receber"}
 STATUS_ORDER = [
@@ -132,8 +142,11 @@ def can_message(cliente):
 def _when(reserva):
     local = timezone.localtime(reserva.inicio, reserva.estabelecimento.timezone)
     fim = timezone.localtime(reserva.fim, reserva.estabelecimento.timezone)
-    weekday = ["seg.", "ter.", "qua.", "qui.", "sex.", "sáb.", "dom."][local.weekday()]
-    return f"{weekday}, {local:%d/%m}", f"{local:%H:%M}", f"{local:%H:%M} às {fim:%H:%M}"
+    return _day(local), f"{local:%H:%M}", f"{local:%H:%M} às {fim:%H:%M}"
+
+
+def _day(value):
+    return f"{WEEKDAYS[value.weekday()]}, {value:%d/%m}"
 
 
 def notify_reservation(reserva_id, kind, payment_url=""):
@@ -237,6 +250,94 @@ def send_due_reminders(now=None):
             )
             if claimed and notify_reservation(reserva.pk, "lembrete"):
                 sent += 1
+    return sent
+
+
+# --- Cobrança de contas a receber
+
+
+def charge_message(conta, today=None):
+    """Modelo e parâmetros da cobrança: lembrete até o vencimento, aviso de atraso depois dele.
+
+    O mesmo texto serve para o envio automático e para o botão que abre o WhatsApp de quem atende.
+    """
+    estabelecimento = conta.estabelecimento
+    today = today or timezone.now().astimezone(estabelecimento.timezone).date()
+    vencimento = conta.vencimento
+    if vencimento < today:
+        modelo, quando = "pagamento_atrasado", _day(vencimento)
+    elif vencimento == today:
+        modelo, quando = "pagamento_lembrete", f"hoje ({vencimento:%d/%m})"
+    elif vencimento == today + timedelta(days=1):
+        modelo, quando = "pagamento_lembrete", f"amanhã ({vencimento:%d/%m})"
+    else:
+        modelo, quando = "pagamento_lembrete", f"em {_day(vencimento)}"
+    params = [
+        conta.cliente.nome.split()[0],
+        estabelecimento.nome,
+        quando,
+        # A Meta recusa parâmetro com quebra de linha ou espaços seguidos.
+        " ".join(conta.descricao.split()),
+        brl(conta.saldo),
+        account_url(conta),
+    ]
+    return modelo, params
+
+
+def notify_account(conta, today=None):
+    if not can_message(conta.cliente):
+        return None
+    modelo, params = charge_message(conta, today)
+    return _queue(
+        conta.estabelecimento, conta.cliente.telefone, cliente=conta.cliente, modelo=modelo, params=params
+    )
+
+
+def send_due_charges(now=None):
+    """Lembrete do vencimento e aviso de atraso das contas a receber, como as mensalidades.
+
+    Contas de reserva ficam de fora: já têm confirmação e lembrete do jogo e são pagas no local.
+    Cada conta recebe no máximo um lembrete e um aviso de atraso por vencimento.
+    """
+    if not enabled():
+        return 0
+    now = now or timezone.now()
+    sent = 0
+    for estabelecimento in Estabelecimento.objects.filter(ativo=True, whatsapp_ativo=True).filter(
+        Q(cobranca_dias_antes__isnull=False) | Q(cobranca_dias_atraso__isnull=False)
+    ):
+        local = now.astimezone(estabelecimento.timezone)
+        if local.hour not in CHARGE_HOURS:
+            continue
+        today = local.date()
+        abertas = ContaReceber.all_tenants.filter(
+            estabelecimento=estabelecimento,
+            status=ContaBase.Status.ABERTA,
+            reserva__isnull=True,
+            valor__gt=F("valor_pago"),
+            cliente__aceite_whatsapp=True,
+            cliente__anonimizado_em__isnull=True,
+            criado_em__lte=now - CHARGE_GRACE,
+        )
+        windows = []
+        if estabelecimento.cobranca_dias_antes is not None:
+            ate = today + timedelta(days=estabelecimento.cobranca_dias_antes)
+            windows.append(("aviso_vencimento_em", Q(vencimento__gte=today, vencimento__lte=ate)))
+        if estabelecimento.cobranca_dias_atraso is not None:
+            ate = today - timedelta(days=estabelecimento.cobranca_dias_atraso)
+            desde = ate - timedelta(days=CHARGE_CATCH_UP_DAYS)
+            windows.append(("aviso_atraso_em", Q(vencimento__gte=desde, vencimento__lte=ate)))
+        for campo, janela in windows:
+            pendentes = abertas.filter(janela, **{f"{campo}__isnull": True}).select_related(
+                "cliente", "estabelecimento"
+            )
+            for conta in pendentes:
+                # Marca antes de enviar, como no lembrete do jogo: duas rotinas não mandam duas vezes.
+                claimed = ContaReceber.all_tenants.filter(
+                    pk=conta.pk, status=ContaBase.Status.ABERTA, **{f"{campo}__isnull": True}
+                ).update(**{campo: now})
+                if claimed and notify_account(conta, today):
+                    sent += 1
     return sent
 
 

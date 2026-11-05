@@ -47,7 +47,13 @@ class ReservasOnlineForm(StyledFormMixin, forms.ModelForm):
 class WhatsAppAjustesForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Estabelecimento
-        fields = ["whatsapp_ativo", "whatsapp_phone_number_id", "lembrete_horas"]
+        fields = [
+            "whatsapp_ativo",
+            "whatsapp_phone_number_id",
+            "lembrete_horas",
+            "cobranca_dias_antes",
+            "cobranca_dias_atraso",
+        ]
 
     def clean_whatsapp_phone_number_id(self):
         value = self.cleaned_data["whatsapp_phone_number_id"].strip()

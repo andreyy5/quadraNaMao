@@ -15,6 +15,25 @@ FUSOS_HORARIOS = [
     ("America/Noronha", "Fernando de Noronha (GMT-2)"),
 ]
 
+# Avisos de contas a receber pelo WhatsApp. Vazio (None) desliga: cada mensagem tem custo na Meta.
+AVISO_VENCIMENTO = [
+    (None, "Não lembrar"),
+    (0, "No dia do vencimento"),
+    (1, "1 dia antes"),
+    (2, "2 dias antes"),
+    (3, "3 dias antes"),
+    (5, "5 dias antes"),
+    (7, "7 dias antes"),
+]
+AVISO_ATRASO = [
+    (None, "Não avisar"),
+    (1, "1 dia depois do vencimento"),
+    (3, "3 dias depois do vencimento"),
+    (5, "5 dias depois do vencimento"),
+    (7, "7 dias depois do vencimento"),
+    (15, "15 dias depois do vencimento"),
+]
+
 
 class Estabelecimento(models.Model):
     nome = models.CharField("nome", max_length=120)
@@ -69,6 +88,20 @@ class Estabelecimento(models.Model):
     )
     lembrete_horas = models.PositiveSmallIntegerField(
         "lembrete antes do jogo (horas)", default=3, help_text="Zero desliga o lembrete."
+    )
+    cobranca_dias_antes = models.PositiveSmallIntegerField(
+        "lembrete do vencimento",
+        choices=AVISO_VENCIMENTO,
+        null=True,
+        blank=True,
+        help_text="Para contas a receber com cliente, como as mensalidades. Reservas já têm o lembrete do jogo.",
+    )
+    cobranca_dias_atraso = models.PositiveSmallIntegerField(
+        "aviso de atraso",
+        choices=AVISO_ATRASO,
+        null=True,
+        blank=True,
+        help_text="Um aviso só, se a conta continuar em aberto.",
     )
     ativo = models.BooleanField("ativo", default=True)
     criado_em = models.DateTimeField(auto_now_add=True)

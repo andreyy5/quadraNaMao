@@ -106,6 +106,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "expirar-sinais-vencidos": {"task": "apps.agenda.tasks.expire_pending", "schedule": 60 * 5},
     "enviar-lembretes": {"task": "apps.whatsapp.tasks.send_due_reminders", "schedule": 60 * 10},
+    "enviar-cobrancas": {"task": "apps.whatsapp.tasks.send_due_charges", "schedule": 60 * 10},
 }
 
 # Endereço público do sistema, usado nos links mandados por WhatsApp (pagamento do sinal).

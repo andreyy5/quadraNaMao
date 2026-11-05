@@ -255,7 +255,8 @@ class ContaListView(ContaViewMixin, ManagerRequiredMixin, ListView):
         services.generate_recurring_accounts(self.request.tenant)
         queryset = self.model.objects.all()
         if self.is_receivable:
-            queryset = queryset.select_related("cliente", "reserva")
+            # O estabelecimento entra no texto e no link do botão de cobrar pelo WhatsApp.
+            queryset = queryset.select_related("cliente", "reserva", "estabelecimento")
         filtro = self.request.GET.get("filtro", "")
         today = timezone.localdate()
         Status = ContaBase.Status

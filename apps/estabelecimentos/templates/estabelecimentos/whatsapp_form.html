@@ -26,6 +26,11 @@
     {% include "components/checkbox.html" with field=form.whatsapp_ativo %}
     {% include "components/field.html" with field=form.whatsapp_phone_number_id %}
     {% include "components/field.html" with field=form.lembrete_horas %}
+    <h2 class="pt-2">Contas a receber</h2>
+    <p class="text-sm text-muted">Cada aviso é uma mensagem cobrada pela Meta. A mensagem leva um link com o valor em aberto e o Pix, e só vai para quem aceitou receber.</p>
+    {% if not request.tenant.chave_pix %}<p class="text-sm text-warning">Sem chave Pix cadastrada em <a class="underline" href="{% url 'estabelecimentos:reservas_online' %}">Reservas online</a>, o link mostra a conta, mas não o Pix.</p>{% endif %}
+    {% include "components/field.html" with field=form.cobranca_dias_antes hide_optional=True %}
+    {% include "components/field.html" with field=form.cobranca_dias_atraso hide_optional=True %}
   </div>
   <div class="form-card-foot"><button class="btn-primary" type="submit">Salvar</button></div>
 </form>

@@ -51,6 +51,7 @@ def test_nothing_is_sent(ligado_na_loja, espaco, cliente, django_capture_on_comm
     with django_capture_on_commit_callbacks(execute=True):
         agenda_services.create_reservation(espaco, cliente, inicio, inicio + timedelta(hours=1))
     assert services.send_due_reminders() == 0
+    assert services.send_due_charges() == 0
     assert not Mensagem.all_tenants.exists()
 
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path("financeiro/", include("apps.financeiro.urls")),
     path("whatsapp/", include("apps.whatsapp.urls")),
     path("r/", include("apps.agenda.public_urls")),
+    path("r/", include("apps.financeiro.public_urls")),
     path("", include("apps.relatorios.urls")),
 ]
 

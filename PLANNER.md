@@ -166,7 +166,8 @@ Todos os models de negócio herdam de um `TenantModel` abstrato com `estabelecim
 - Usar a **API oficial (WhatsApp Business Cloud API)**, direto ou via provedor. **Não** usar bibliotecas não oficiais: risco de banimento do número do cliente.
 - Criar uma **camada de abstração** (`WhatsAppProvider`) para trocar de provedor sem reescrever o resto.
 - Webhook recebe mensagens e status de entrega; responder rápido (200) e processar em Celery.
-- Lembretes e avisos fora da janela de 24h exigem **templates aprovados**. Mapear os templates necessários: confirmação de reserva, lembrete, cobrança de sinal, cancelamento, aviso de chuva/remarcação.
+- Lembretes e avisos fora da janela de 24h exigem **templates aprovados**. Mapear os templates necessários: confirmação de reserva, lembrete, cobrança de sinal, cancelamento, aviso de chuva/remarcação, lembrete de vencimento e aviso de atraso de conta a receber (mensalidade).
+- Cobrança de conta a receber por link público com o Pix do valor em aberto, mandado pelo envio automático ou pelo botão que abre o WhatsApp da equipe (sem custo).
 - Guardar histórico de conversas e status de cada mensagem.
 - Respeitar opt-in/opt-out do cliente (LGPD).
 - Considerar custo por mensagem e refletir isso no plano do produto.

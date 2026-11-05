@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui whatsapp_ui %}
 
 {% block title %}{% if is_receivable %}A receber{% else %}A pagar{% endif %} · {{ PRODUCT_NAME }}{% endblock %}
 {% block main_width %}max-w-5xl{% endblock %}
@@ -38,6 +38,7 @@
     {% if conta.is_open %}
     <div class="flex w-full shrink-0 items-center justify-end gap-0.5 sm:w-auto">
       {% if is_receivable %}
+      {% if conta.is_chargeable %}{% with wa=conta|cobranca_whatsapp_url %}{% if wa %}<a class="btn-whatsapp mr-1 min-h-9 w-9 px-0 [&_svg]:h-4 [&_svg]:w-4" target="_blank" rel="noopener" href="{{ wa }}" aria-label="Cobrar {{ conta.cliente.nome }} pelo WhatsApp" title="Cobrar pelo WhatsApp">{% include "components/icon.html" with name="message" %}</a>{% endif %}{% endwith %}{% endif %}
       {% if conta.reserva_id %}
       <button class="btn-secondary min-h-9 px-3" type="button" hx-get="{% url 'financeiro:receber_reserva' conta.reserva_id %}" hx-target="#modal-body">Receber</button>
       {% else %}

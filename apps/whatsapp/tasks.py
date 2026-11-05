@@ -17,3 +17,8 @@ def process_webhook(payload):
 @shared_task
 def send_due_reminders():
     return services.send_due_reminders()
+
+
+@shared_task
+def send_due_charges():
+    return services.send_due_charges()

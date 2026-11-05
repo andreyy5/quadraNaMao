@@ -144,3 +144,10 @@ class ContaReceberForm(ContaFormMixin, TenantFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["cliente"].queryset = Cliente.objects.filter(anonimizado_em__isnull=True)
+
+    def save(self, commit=True):
+        # Vencimento novo, avisos novos: os do vencimento antigo não valem para ele.
+        if "vencimento" in self.changed_data:
+            self.instance.aviso_vencimento_em = None
+            self.instance.aviso_atraso_em = None
+        return super().save(commit)

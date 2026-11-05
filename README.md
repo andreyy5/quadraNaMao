@@ -63,7 +63,8 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 **WhatsApp (módulo em espera)**
 - Pronto, mas desligado por padrão por causa do custo da Meta: some do menu e não manda nada. `WHATSAPP_ENABLED=True` religa.
 - Quando ligado: confirmação, lembrete, cancelamento e aviso de chuva só para quem aceitou (LGPD), histórico de conversas com status de leitura e SAIR para deixar de receber.
-- O botão de chamar o cliente no WhatsApp pelo celular da equipe continua, porque não tem custo.
+- Cobrança de contas a receber, como as mensalidades: lembrete antes do vencimento e aviso de atraso, cada um desligável em Ajustes. A mensagem leva um link com o valor em aberto e o Pix.
+- O botão de chamar o cliente no WhatsApp pelo celular da equipe continua, porque não tem custo. Nas contas a receber, ele abre a conversa com a cobrança e o link já escritos.
 
 **Clientes**
 - Cadastro automático na primeira reserva, busca por nome ou telefone e histórico.
@@ -78,6 +79,7 @@ O planejamento completo, com modelagem e fases, está em [PLANNER.md](PLANNER.md
 - Caixa por operador, com abertura, retirada de dinheiro e fechamento com conferência da gaveta.
 - Cada reserva gera sua conta a receber, com recebimento total ou parcial.
 - Contas a receber e a pagar com repetição semanal, mensal ou anual e alertas de vencimento.
+- Botão de cobrar pelo WhatsApp em cada conta a receber, com link para o cliente ver o valor em aberto e pagar pelo Pix (QR Code e copia e cola).
 - Estorno em vez de edição: todo lançamento fica no histórico.
 - Caixa esquecido aberto desde outro dia aparece em "Pedem atenção"; o caixa "Pix online" fecha conferindo com o extrato.
 
@@ -253,6 +255,7 @@ Os testes criam um banco temporário no próprio PostgreSQL. As regras críticas
 | Link público, Pix, expiração do sinal e pagamento atrasado | `apps/agenda/tests/test_online.py` |
 | Mensalistas, avisos e mensalidade | `apps/agenda/tests/test_mensalistas.py` |
 | WhatsApp: aceite, webhook assinado, status, SAIR, janela de 24 horas | `apps/whatsapp/tests/` |
+| Cobrança de contas: prazos, horário, aviso único, botão manual e página do link | `apps/whatsapp/tests/test_cobranca.py` |
 | Limite de tentativas no login | `apps/contas/tests/` e `apps/estabelecimentos/tests/test_ratelimit.py` |
 | Esqueci minha senha: link, uso único, limites e e-mail que não existe | `apps/contas/tests/test_senha.py` |
 | Escolha automática do espaço, no painel e no link | `apps/agenda/tests/test_automatico.py` |
@@ -328,6 +331,7 @@ O `Dockerfile` e o `docker-compose.yml` ainda não foram executados de ponta a p
 |---|---|
 | Expirar reservas com sinal vencido | a cada 5 minutos |
 | Lembretes pelo WhatsApp | a cada 10 minutos |
+| Cobranças de contas a receber pelo WhatsApp (só das 9h às 20h) | a cada 10 minutos |
 | Reservas das próximas semanas dos mensalistas | diária |
 | Contas que se repetem | diária |
 
